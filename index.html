@@ -1,342 +1,237 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Mi Caja — Control rápido de caja</title>
   <style>
-    :root{
-      --bg:#f6f8fa;--card:#fff;--text:#0f1720;--muted:#6b7280;
-      --green:#10b981;--red:#ef4444;--blue:#3b82f6;--accent:#6366f1;
+    body {
+      font-family: Arial, sans-serif;
+      background-color: var(--bg);
+      color: var(--text);
+      margin: 0;
+      padding: 0;
+      transition: 0.3s;
     }
-    [data-theme="dark"]{ --bg:#0b1220; --card:#071023; --text:#e6eef8; --muted:#9aa6bd }
-    *{box-sizing:border-box}
-    body{font-family:Inter,Segoe UI,Roboto,Arial,Helvetica,sans-serif; margin:0;background:var(--bg);color:var(--text);padding:18px}
-    .container{max-width:920px;margin:0 auto}
-    header{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px}
-    h1{font-size:20px;margin:0}
-    .controls{display:flex;gap:8px;align-items:center}
-    .card{background:var(--card);padding:14px;border-radius:10px;box-shadow:0 6px 18px rgba(2,6,23,0.06);margin-bottom:12px}
-    .grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-    label{display:block;font-size:13px;margin-bottom:6px;color:var(--muted)}
-    input[type="text"], input[type="number"]{width:100%;padding:8px;border-radius:8px;border:1px solid rgba(15,23,32,0.06)}
-    .btn{display:inline-block;padding:8px 12px;border-radius:8px;border:none;background:var(--accent);color:white;cursor:pointer}
-    .btn.ghost{background:transparent;color:var(--text);border:1px solid rgba(15,23,32,0.06)}
-    .summaries{display:flex;gap:12px}
-    .summary{flex:1;padding:12px;border-radius:8px}
-    .summary .value{font-size:20px;font-weight:700}
-    .list{max-height:260px;overflow:auto;margin-top:8px}
-    table{width:100%;border-collapse:collapse}
-    th,td{padding:6px;text-align:left;border-bottom:1px solid rgba(0,0,0,0.04);font-size:13px}
-    .muted{color:var(--muted)}
-    footer{margin-top:12px;text-align:center;color:var(--muted)}
-    .theme-toggle{padding:8px;border-radius:8px;border:1px solid rgba(15,23,32,0.06);cursor:pointer}
-    .overlay{position:fixed;inset:0;background:linear-gradient(180deg,rgba(2,6,23,0.55),rgba(2,6,23,0.65));display:flex;align-items:center;justify-content:center;z-index:9999}
-    .overlay .panel{background:var(--card);padding:20px;border-radius:10px;max-width:420px;text-align:center;color:var(--text)}
-    .small{font-size:13px}
-    .trash{background:transparent;border:none;color:var(--red);cursor:pointer}
-    @media(max-width:720px){.grid{grid-template-columns:1fr}.summaries{flex-direction:column}}
+    :root {
+      --bg: #f5f6fa;
+      --text: #222;
+      --card-bg: white;
+      --primary: #6c63ff;
+      --danger: #e74c3c;
+    }
+    .dark {
+      --bg: #181818;
+      --text: #eee;
+      --card-bg: #222;
+    }
+    header {
+      padding: 1rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: var(--card-bg);
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    }
+    header h1 {
+      font-size: 1.2rem;
+    }
+    .container {
+      max-width: 900px;
+      margin: 2rem auto;
+      display: grid;
+      gap: 1rem;
+    }
+    .card {
+      background: var(--card-bg);
+      border-radius: 10px;
+      padding: 1rem;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    .inputs {
+      display: flex;
+      gap: 0.5rem;
+      flex-direction: column;
+    }
+    input {
+      padding: 0.5rem;
+      border-radius: 5px;
+      border: 1px solid #ccc;
+      font-size: 1rem;
+    }
+    button {
+      padding: 0.5rem 1rem;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      font-weight: bold;
+    }
+    .btn-primary {
+      background: var(--primary);
+      color: white;
+    }
+    .btn-danger {
+      background: var(--danger);
+      color: white;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 1rem;
+    }
+    th, td {
+      padding: 0.5rem;
+      border-bottom: 1px solid #ccc;
+      text-align: left;
+    }
+    .summary {
+      display: flex;
+      justify-content: space-around;
+      padding: 1rem;
+      background: var(--card-bg);
+      border-radius: 10px;
+      margin-top: 1rem;
+    }
+    footer {
+      text-align: center;
+      font-size: 0.9rem;
+      padding: 1rem;
+      color: #888;
+    }
   </style>
 </head>
 <body>
-  <div class="container" id="app">
-    <header>
-      <h1>Mi Caja — Control rápido de caja</h1>
-      <div class="controls">
-        <button id="themeBtn" class="theme-toggle">Cambiar tema</button>
-        <button id="exportBtn" class="btn ghost">Exportar CSV</button>
-        <button id="payBtn" class="btn">Renovar suscripción</button>
-      </div>
-    </header>
+  <header>
+    <h1>Mi Caja — Control rápido de caja</h1>
+    <div>
+      <button id="themeBtn">Cambiar tema</button>
+      <button id="exportBtn">Exportar CSV</button>
+      <button id="renewBtn" class="btn-primary">Renovar suscripción</button>
+    </div>
+  </header>
 
-    <div class="grid">
-      <div class="card">
-        <h3>Registrar venta</h3>
-        <label class="muted">Descripción</label>
-        <input id="saleDesc" type="text" placeholder="Ej: Yerba - Marca X" />
-        <label class="muted">Importe</label>
-        <input id="saleAmt" type="number" placeholder="0.00" />
-        <div style="margin-top:8px;display:flex;gap:8px">
-          <button id="addSale" class="btn">Agregar venta</button>
-          <button id="quick5" class="btn ghost">+ 5</button>
-          <button id="quick10" class="btn ghost">+ 10</button>
-        </div>
-      </div>
-
-      <div class="card">
-        <h3>Registrar gasto</h3>
-        <label class="muted">Descripción</label>
-        <input id="expDesc" type="text" placeholder="Ej: Compra de golosinas" />
-        <label class="muted">Importe</label>
-        <input id="expAmt" type="number" placeholder="0.00" />
-        <div style="margin-top:8px;display:flex;gap:8px">
-          <button id="addExp" class="btn" style="background:var(--red)">Agregar gasto</button>
-          <button id="closeDay" class="btn ghost">Cerrar día</button>
-        </div>
+  <div class="container">
+    <div class="card">
+      <h2>Registrar venta</h2>
+      <div class="inputs">
+        <input id="ventaDesc" placeholder="Descripción" />
+        <input id="ventaMonto" type="number" placeholder="Importe" />
+        <button class="btn-primary" id="addVentaBtn">Agregar venta</button>
       </div>
     </div>
 
     <div class="card">
-      <div class="summaries">
-        <div class="summary" style="background:linear-gradient(90deg,rgba(16,185,129,0.08),transparent)">
-          <div class="muted">Ventas totales</div>
-          <div id="totalSales" class="value">$ 0.00</div>
-        </div>
-        <div class="summary" style="background:linear-gradient(90deg,rgba(239,68,68,0.06),transparent)">
-          <div class="muted">Gastos totales</div>
-          <div id="totalExp" class="value">$ 0.00</div>
-        </div>
-        <div class="summary" style="background:linear-gradient(90deg,rgba(59,130,246,0.06),transparent)">
-          <div class="muted">Ganancia neta</div>
-          <div id="net" class="value">$ 0.00</div>
-        </div>
-      </div>
-
-      <div class="list">
-        <h4 style="margin:10px 0 6px 0">Historial (últimas entradas)</h4>
-        <table>
-          <thead><tr><th>Tipo</th><th>Descripción</th><th>Monto</th><th>Hora</th><th></th></tr></thead>
-          <tbody id="history"></tbody>
-        </table>
+      <h2>Registrar gasto</h2>
+      <div class="inputs">
+        <input id="gastoDesc" placeholder="Descripción" />
+        <input id="gastoMonto" type="number" placeholder="Importe" />
+        <button class="btn-danger" id="addGastoBtn">Agregar gasto</button>
       </div>
     </div>
 
-    <div class="card" style="display:flex;justify-content:space-between;align-items:center">
-      <div>
-        <div class="muted small">Suscripción</div>
-        <div id="subInfo" style="font-weight:700">No activada</div>
-        <div class="muted small">(El botón "Renovar suscripción" se puede reemplazar con tu link de pago)</div>
-      </div>
-      <div style="text-align:right">
-        <button id="activateBtn" class="btn ghost">Activar con código (demo)</button>
-      </div>
+    <div class="summary">
+      <div>Ventas totales: <strong id="ventasTotal">$0.00</strong></div>
+      <div>Gastos totales: <strong id="gastosTotal">$0.00</strong></div>
+      <div>Ganancia neta: <strong id="ganancia">$0.00</strong></div>
     </div>
 
-    <footer class="muted small">Mi Caja — versión mínima. Reemplaza el botón de pago por tu link o QR.</footer>
-  </div>
+    <div class="card">
+      <h3>Historial (últimas entradas)</h3>
+      <table>
+        <thead>
+          <tr>
+            <th>Tipo</th>
+            <th>Descripción</th>
+            <th>Monto</th>
+            <th>Hora</th>
+            <th>Acción</th>
+          </tr>
+        </thead>
+        <tbody id="historial"></tbody>
+      </table>
+    </div>
 
-  <div id="overlay" class="overlay" style="display:none">
-    <div class="panel">
-      <h3 id="overlayTitle">Suscripción expirada</h3>
-      <p id="overlayMsg" class="small">Tu suscripción ha expirado. Tiempo restante para renovar:</p>
-      <div id="countdown" style="font-size:22px;font-weight:700;margin:10px 0">24:00:00</div>
-      <div style="display:flex;gap:8px;justify-content:center">
-        <button id="overlayPay" class="btn">Renovar suscripción</button>
-        <button id="overlayActivate" class="btn ghost">Ingresar código</button>
+    <div class="card">
+      <h3>Suscripción</h3>
+      <p id="status">No activada</p>
+      <small>(El botón “Renovar suscripción” se puede reemplazar con tu link de pago)</small>
+      <div style="margin-top: 1rem;">
+        <button id="activarDemoBtn">Activar con código (demo)</button>
       </div>
-      <p class="muted small" style="margin-top:8px">Si no renuevas en las 24 horas, tu acceso permanecerá bloqueado hasta que realices el pago.</p>
     </div>
   </div>
+
+  <footer>
+    Mi Caja — versión mínima. Reemplaza el botón de pago por tu link o QR.
+  </footer>
 
   <script>
-    /* ---------- UTILIDADES ---------- */
-    const $ = id => document.getElementById(id);
-    const fmt = n => Number(n || 0).toLocaleString('es-AR',{style:'currency',currency:'ARS',minimumFractionDigits:2});
+    const ventasTotal = document.getElementById("ventasTotal");
+    const gastosTotal = document.getElementById("gastosTotal");
+    const ganancia = document.getElementById("ganancia");
+    const historial = document.getElementById("historial");
 
-    /* ---------- ALMACENAMIENTO ---------- */
-    const STORAGE_KEYS = {
-      SALES: 'mjc_sales_v1',
-      EXP: 'mjc_exp_v1',
-      THEME: 'mjc_theme_v1',
-      SUB: 'mjc_sub_v1'
+    let data = JSON.parse(localStorage.getItem("micaja-data")) || [];
+
+    function actualizarVista() {
+      let ventas = data.filter(i => i.tipo === "venta").reduce((a,b)=>a+b.monto,0);
+      let gastos = data.filter(i => i.tipo === "gasto").reduce((a,b)=>a+b.monto,0);
+      ventasTotal.textContent = "$ " + ventas.toFixed(2);
+      gastosTotal.textContent = "$ " + gastos.toFixed(2);
+      ganancia.textContent = "$ " + (ventas - gastos).toFixed(2);
+      historial.innerHTML = data.map((d,i)=>`
+        <tr>
+          <td>${d.tipo}</td>
+          <td>${d.desc}</td>
+          <td>$${d.monto.toFixed(2)}</td>
+          <td>${d.hora}</td>
+          <td><button onclick="borrar(${i})">🗑️</button></td>
+        </tr>`).join("");
+    }
+
+    function agregar(tipo) {
+      const desc = document.getElementById(tipo+"Desc").value;
+      const monto = parseFloat(document.getElementById(tipo+"Monto").value);
+      if(!desc || isNaN(monto)) return alert("Completa todos los campos");
+      data.push({ tipo, desc, monto, hora: new Date().toLocaleTimeString() });
+      localStorage.setItem("micaja-data", JSON.stringify(data));
+      actualizarVista();
+      document.getElementById(tipo+"Desc").value="";
+      document.getElementById(tipo+"Monto").value="";
+    }
+
+    function borrar(i){
+      if(confirm("¿Eliminar este registro?")){
+        data.splice(i,1);
+        localStorage.setItem("micaja-data", JSON.stringify(data));
+        actualizarVista();
+      }
+    }
+
+    document.getElementById("addVentaBtn").onclick=()=>agregar("venta");
+    document.getElementById("addGastoBtn").onclick=()=>agregar("gasto");
+
+    document.getElementById("themeBtn").onclick=()=>{
+      document.body.classList.toggle("dark");
     };
 
-    function save(key, value){localStorage.setItem(key, JSON.stringify(value))}
-    function load(key, fallback){const v=localStorage.getItem(key);return v?JSON.parse(v):fallback}
+    document.getElementById("exportBtn").onclick=()=>{
+      const rows = [["Tipo","Descripción","Monto","Hora"], ...data.map(d=>[d.tipo,d.desc,d.monto,d.hora])];
+      const csv = rows.map(r=>r.map(c=>`"${String(c).replace(/"/g,'""')}"`).join(',')).join('\n');
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "micaja.csv";
+      a.click();
+    };
 
-    let sales = load(STORAGE_KEYS.SALES, []);
-    let exps = load(STORAGE_KEYS.EXP, []);
-    let subscription = load(STORAGE_KEYS.SUB, null); // {start: ISO, end: ISO}
+    document.getElementById("activarDemoBtn").onclick=()=>{
+      alert("Demo activada (30 días simulados)");
+      document.getElementById("status").textContent="Suscripción activa (demo)";
+    };
 
-    /* ---------- RENDER ---------- */
-    function render(){
-      const totalSales = sales.reduce((s,i)=>s+Number(i.amt),0);
-      const totalExp = exps.reduce((s,i)=>s+Number(i.amt),0);
-      const net = totalSales - totalExp;
-      $('totalSales').textContent = fmt(totalSales);
-      $('totalExp').textContent = fmt(totalExp);
-      $('net').textContent = fmt(net);
-
-      const rows = [...sales.map(s=>({type:'Venta',desc:s.desc,amt:s.amt,ts:s.ts, id:s.id})), ...exps.map(e=>({type:'Gasto',desc:e.desc,amt:-Math.abs(e.amt),ts:e.ts, id:e.id}))]
-        .sort((a,b)=> new Date(b.ts) - new Date(a.ts)).slice(0,200);
-      const tbody = $('history'); tbody.innerHTML='';
-      for(const r of rows){
-        const tr = document.createElement('tr');
-        const delBtn = `<button class=\"trash\" data-id=\"${r.id}\" data-type=\"${r.type}\" title=\"Borrar entrada\">🗑️</button>`;
-        tr.innerHTML = `<td>${r.type}</td><td>${escapeHtml(r.desc||'')}</td><td>${fmt(Math.abs(r.amt))}</td><td>${new Date(r.ts).toLocaleString()}</td><td>${delBtn}</td>`;
-        tbody.appendChild(tr);
-      }
-
-      const subInfo = $('subInfo');
-      if(subscription && subscription.end){
-        const end = new Date(subscription.end);
-        subInfo.textContent = `Activa hasta ${end.toLocaleString()}`;
-      } else {
-        subInfo.textContent = 'No activada';
-      }
-
-      checkSubscription();
-    }
-
-    function escapeHtml(str){return String(str).replace(/[&<>\"']/g, s=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' })[s])}
-
-    /* ---------- ACCIONES ---------- */
-    function generateId(){return Math.random().toString(36).slice(2,9)}
-
-    $('addSale').addEventListener('click', ()=>{
-      if(isBlocked()) return;
-      const desc = $('saleDesc').value.trim();
-      const amt = Number($('saleAmt').value || 0);
-      if(!amt || amt<=0){alert('Ingrese un monto válido.'); return}
-      sales.push({id:generateId(), desc, amt, ts: new Date().toISOString()}); save(STORAGE_KEYS.SALES, sales); $('saleDesc').value=''; $('saleAmt').value=''; render();
-    });
-    $('addExp').addEventListener('click', ()=>{
-      if(isBlocked()) return;
-      const desc = $('expDesc').value.trim();
-      const amt = Number($('expAmt').value || 0);
-      if(!amt || amt<=0){alert('Ingrese un monto válido.'); return}
-      exps.push({id:generateId(), desc, amt, ts: new Date().toISOString()}); save(STORAGE_KEYS.EXP, exps); $('expDesc').value=''; $('expAmt').value=''; render();
-    });
-
-    $('quick5').addEventListener('click', ()=>{if(isBlocked()) return; $('saleAmt').value = Number($('saleAmt').value||0)+5});
-    $('quick10').addEventListener('click', ()=>{if(isBlocked()) return; $('saleAmt').value = Number($('saleAmt').value||0)+10});
-
-    document.addEventListener('click', (e)=>{
-      if(e.target && e.target.matches('.trash')){
-        const id = e.target.dataset.id; const type = e.target.dataset.type;
-        if(!confirm('Confirmar borrado de la entrada. Esta acción no se puede deshacer.')) return;
-        deleteEntry(id, type);
-      }
-    });
-
-    function deleteEntry(id, type){
-      if(type==='Venta'){
-        const idx = sales.findIndex(s=>s.id===id); if(idx>-1){
-          const removed = sales.splice(idx,1)[0];
-          // Añadir registro de anulación en historial (audit)
-          exps.push({id:generateId(), desc:`Anulación venta: ${removed.desc}`, amt: removed.amt, ts: new Date().toISOString()});
-          save(STORAGE_KEYS.SALES, sales); save(STORAGE_KEYS.EXP, exps); render();
-        }
-      } else {
-        const idx = exps.findIndex(s=>s.id===id); if(idx>-1){
-          const removed = exps.splice(idx,1)[0];
-          // Registrar anulación como ingreso
-          sales.push({id:generateId(), desc:`Anulación gasto: ${removed.desc}`, amt: removed.amt, ts: new Date().toISOString()});
-          save(STORAGE_KEYS.SALES, sales); save(STORAGE_KEYS.EXP, exps); render();
-        }
-      }
-    }
-
-    $('closeDay').addEventListener('click', ()=>{
-      if(isBlocked()) return;
-      if(!confirm('¿Cerrar el día y borrar todas las ventas y gastos? Esta acción no se puede deshacer.')) return;
-      sales=[]; exps=[]; save(STORAGE_KEYS.SALES, sales); save(STORAGE_KEYS.EXP, exps); render();
-    });
-
-    $('exportBtn').addEventListener('click', ()=>{
-      const rows = [['Tipo','Descripción','Monto','Fecha']];
-      for(const s of sales) rows.push(['Venta', s.desc, s.amt, s.ts]);
-      for(const e of exps) rows.push(['Gasto', e.desc, -Math.abs(e.amt), e.ts]);
-      const csv = rows.map(r=>r.map(c=>`"${String(c).replace(/"/g,'""') }"`).join(',')).join('
-');
-      const blob = new Blob([csv],{type:'text/csv;charset=utf-8;'});
-      const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href=url; a.download='micaja_export.csv'; a.click(); URL.revokeObjectURL(url);
-    });
-
-    /* ---------- SUSCRIPCIÓN (sin backend local) ---------- */
-    function now(){return new Date()}
-    function addMonths(date, n){
-      const d = new Date(date.getTime());
-      const day = d.getDate();
-      d.setMonth(d.getMonth()+n);
-      if(d.getDate() !== day){ d.setDate(0); }
-      return d;
-    }
-    function activateSubscriptionFromNow(){
-      const start = new Date();
-      const end = addMonths(start,1); // mensual según mes
-      subscription = {start: start.toISOString(), end: end.toISOString()};
-      save(STORAGE_KEYS.SUB, subscription);
-      render();
-      alert('Suscripción activada (demo). Vigente hasta ' + new Date(subscription.end).toLocaleString());
-    }
-
-    $('activateBtn').addEventListener('click', ()=>{
-      const code = prompt('Ingrese el código de activación (demo: escribir "demo")');
-      if(!code) return; if(code.trim().toLowerCase()==='demo'){ activateSubscriptionFromNow(); } else { alert('Código inválido. En la versión real este flujo se completaría tras verificar el pago.'); }
-    });
-
-    $('payBtn').addEventListener('click', ()=> openPayment());
-    $('overlayPay').addEventListener('click', ()=> openPayment());
-    $('overlayActivate').addEventListener('click', ()=> $('activateBtn').click());
-
-    function openPayment(){
-      // Aquí se abriría el checkout generado por tu backend.
-      const paymentLink = '#';
-      if(paymentLink==='#'){ alert('Reemplaza el link de pago en el código con tu URL o muestra aquí un QR. En la versión con backend, se abrirá el preference de Mercado Pago.'); return; }
-      window.open(paymentLink,'_blank');
-    }
-
-    /* ---------- CHEQUEO Y BLOQUEO ---------- */
-    let overlayInterval = null;
-    function checkSubscription(){
-      const ov = $('overlay');
-      if(!subscription || !subscription.end){ ov.style.display='none'; return; }
-      const end = new Date(subscription.end);
-      const nowDt = now();
-      if(nowDt <= end){ ov.style.display='none'; return; }
-      const graceEnd = new Date(end.getTime() + 24*60*60*1000);
-      if(nowDt <= graceEnd){ ov.style.display='flex'; $('overlayTitle').textContent = 'Suscripción vencida — periodo de gracia'; startOverlayCountdown(graceEnd); return; }
-      ov.style.display='flex'; $('overlayTitle').textContent = 'Suscripción vencida'; $('overlayMsg').textContent = 'Tu suscripción venció hace más de 24 horas. Tu acceso está bloqueado hasta que renueves.'; $('countdown').textContent = ''; stopOverlayCountdown();
-    }
-    function startOverlayCountdown(targetDate){ stopOverlayCountdown(); function tick(){ const diff = targetDate - new Date(); if(diff<=0){ $('countdown').textContent = '00:00:00'; checkSubscription(); return; } const h = Math.floor(diff/3600000); const m = Math.floor((diff%3600000)/60000); const s = Math.floor((diff%60000)/1000); $('countdown').textContent = `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`; } tick(); overlayInterval = setInterval(tick,1000); }
-    function stopOverlayCountdown(){ if(overlayInterval) { clearInterval(overlayInterval); overlayInterval=null; } }
-    function isBlocked(){ return $('overlay').style.display === 'flex'; }
-
-    /* ---------- THEME ---------- */
-    const storedTheme = load(STORAGE_KEYS.THEME, 'light');
-    function applyTheme(t){ document.documentElement.setAttribute('data-theme', t==='dark'?'dark':'light'); save(STORAGE_KEYS.THEME, t); $('themeBtn').textContent = t==='dark' ? 'Tema claro' : 'Tema oscuro'; }
-    $('themeBtn').addEventListener('click', ()=>{ const current = load(STORAGE_KEYS.THEME,'light'); applyTheme(current==='dark'?'light':'dark'); });
-    applyTheme(storedTheme);
-
-    /* ---------- INICIALIZACIÓN ---------- */
-    render();
-    window.addEventListener('beforeunload', ()=>{ save(STORAGE_KEYS.SALES, sales); save(STORAGE_KEYS.EXP, exps); save(STORAGE_KEYS.SUB, subscription); });
-
-    /* ---------- NOTAS Y SIGUIENTES PASOS (Backend & Cloud) ---------- */
-    // En este mismo archivo incluimos placeholders para integrar el backend.
-    // A continuación (fuera del navegador) deberías crear un pequeño servidor Node.js que:
-    // 1) Use Mercado Pago SDK para crear preferencias de pago (/create_preference).
-    // 2) Exponga un webhook (/webhook_mp) que reciba las notificaciones de MP y, cuando confirme un pago,
-    //    genere un código de activación único y lo guarde en Firestore (o similar), marcando al usuario como activo.
-    // 3) Tenga rutas administrativas protegidas para listar suscriptores y códigos.
-
-    // PSEUDO-CÓDIGO servidor (Node.js + Express) — ver README para instalación completa:
-    /*
-    const express = require('express');
-    const mercadopago = require('mercadopago');
-    const admin = require('firebase-admin');
-    // inicializar mercadopago con ACCESS_TOKEN y firebase admin con credenciales
-
-    app.post('/create_preference', async (req,res)=>{
-      // req.body: {userId}
-      const preference = {
-        items:[{title:'Suscripción Mi Caja', quantity:1, unit_price:1000}],
-        metadata:{userId: req.body.userId}
-      }
-      const mpPref = await mercadopago.preferences.create(preference);
-      res.json({init_point: mpPref.body.init_point});
-    });
-
-    app.post('/webhook_mp', async (req,res)=>{
-      // Mercado Pago envía payment.id en query o en body. Buscar payment y validar que esté aprobado.
-      // Si aprobado -> generar código único, guardar en Firestore junto al userId (metadata), y marcar suscripción con fecha de inicio y fin.
-    });
-    */
-
-    // Si querés, puedo: generar el repo backend con el código Node.js listo (incluyendo ejemplo de webhook),
-    // generar la estructura de Firestore para usuarios y activaciones, y crear el panel admin mínimo.
-
+    actualizarVista();
   </script>
 </body>
 </html>
