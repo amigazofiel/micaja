@@ -43,6 +43,7 @@
             padding: 5px;
             border-radius: 5px;
             background-color: rgba(255, 255, 255, 0.2);
+            transition: background-color 0.5s; /* Animación para el cambio de estado */
         }
 
         main {
@@ -77,17 +78,26 @@
             border: 1px solid #ced4da;
             box-sizing: border-box;
         }
-
+        
         #input-section button {
-            background-color: var(--color-success);
-            color: white;
             font-weight: bold;
             cursor: pointer;
             transition: background-color 0.3s;
         }
 
-        #input-section button:hover {
+        #input-section button:first-of-type { /* Botón Agregar */
+            background-color: var(--color-success);
+            color: white;
+        }
+
+        #input-section button:first-of-type:hover {
             background-color: #218838;
+        }
+        
+        #input-section button:nth-child(6) { /* Botón Simular Pago */
+            background-color: #808080;
+            color: white;
+            border: none;
         }
 
         /* Resumen Diario */
@@ -102,10 +112,9 @@
         }
 
         #ganancia-dia {
-            color: var(--color-success);
             font-size: 1.3em;
             border-top: 1px dashed #ced4da;
-            padding-top: 5px;
+            padding-top: 10px;
             margin-top: 10px;
             display: block;
         }
@@ -116,18 +125,29 @@
             margin-top: 10px;
             border-radius: 5px;
             cursor: pointer;
+            border: 1px solid #ced4da;
         }
         
-        #resumen-diario button:first-of-type {
+        #resumen-diario button:first-of-type { /* Borrar */
              background-color: var(--color-danger);
              color: white;
              border: none;
+        }
+        
+        .delete-info {
+            font-size: 0.8em;
+            color: #6c757d;
+            margin-top: -5px;
+            margin-bottom: 10px;
+            text-align: center;
         }
 
         /* Histórico */
         #lista-movimientos {
             list-style: none;
             padding: 0;
+            max-height: 200px;
+            overflow-y: auto;
         }
 
         #lista-movimientos li {
@@ -165,7 +185,7 @@
         
         /* Bloqueo */
         .app-blocked #input-section,
-        .app-blocked #resumen-diario button:not(.pay-button),
+        .app-blocked #resumen-diario button:not([onclick="exportarResumen()"]):not(.pay-button),
         .app-blocked #historico {
             opacity: 0.3;
             pointer-events: none; /* Deshabilita clics */
@@ -174,12 +194,18 @@
         .app-blocked #suscripcion {
              border: 3px solid var(--color-danger);
         }
+        
+        /* Estilos específicos del contador de alerta */
+        .alert-warning { background-color: #ffeeba !important; color: #856404; }
+        .alert-danger { background-color: #f5c6cb !important; color: #721c24; }
+        .alert-success { background-color: #d4edda !important; color: #155724; }
+        
     </style>
 </head>
 <body>
     <header>
         <h1>Mi Caja 💰</h1>
-        <div id="subscription-status">Verificando...</div>
+        <div id="subscription-status" class="alert-warning">Verificando...</div>
     </header>
 
     <main>
@@ -199,9 +225,13 @@
         <section id="resumen-diario">
             <h2>Resumen del Día</h2>
             <p>Ventas: <strong id="total-ventas">$0.00</strong></p>
-            <p>Gastos + Compras: <strong id="total-gastos">$0.00</strong></p>
-            <p>Ganancia del Día: <strong id="ganancia-dia">$0.00</strong></p>
+            <p>Compras: <strong id="total-compras">$0.00</strong></p>
+            <p>Gastos: <strong id="total-gastos">$0.00</strong></p>
+            <p id="ganancia-dia">Ganancia del Día: <strong id="ganancia-valor">$0.00</strong></p>
+            
             <button onclick="borrarDatosDia()">Borrar al Cerrar el Día</button>
+            <p class="delete-info">⚠️ Si desea conservar los resultados, exporte los datos antes de borrar.</p>
+
             <button onclick="exportarResumen()">Exportar Resumen (CSV)</button>
         </section>
 
@@ -234,44 +264,55 @@
         const SUB_DURATION_MS = 30 * 24 * 60 * 60 * 1000; // 30 días de suscripción
 
         // --- FUNCIONES DE SUBSCRIPCIÓN Y BLOQUEO ---
+
+        /**
+         * Verifica el estado de la suscripción y actualiza la interfaz.
+         */
         function verificarSuscripcion() {
             const subData = JSON.parse(localStorage.getItem(SUBSCRIPTION_KEY));
             const now = new Date().getTime();
             const statusElement = document.getElementById('subscription-status');
             
-            // Si no hay datos, o la suscripción ha expirado
+            // Limpiar clases de estado
+            statusElement.className = '';
+
+            // 1. SIN DATOS / EXPIRADO
             if (!subData || now > subData.expiryDate) {
-                // Verificar si estamos en el período de gracia (24h después de la fecha de expiración)
                 const graceExpiry = subData ? subData.expiryDate + GRACE_PERIOD_MS : 0;
                 
+                // 1a. PERÍODO DE GRACIA (24 horas)
                 if (now < graceExpiry) {
-                    // Está en el período de gracia
                     document.body.classList.remove('app-blocked');
                     const timeLeft = graceExpiry - now;
                     const hoursLeft = Math.ceil(timeLeft / (60 * 60 * 1000));
                     statusElement.innerHTML = `⚠️ **ALERTA**: Suscripción por vencer. Quedan ${hoursLeft} horas para el bloqueo.`;
-                    statusElement.style.backgroundColor = var(--color-warning);
-                } else {
-                    // Aplicar bloqueo total
+                    statusElement.classList.add('alert-warning');
+                } 
+                // 1b. BLOQUEO TOTAL
+                else {
                     document.body.classList.add('app-blocked');
                     statusElement.innerHTML = `⛔ **BLOQUEADA**: Suscripción Vencida. Paga para desbloquear.`;
-                    statusElement.style.backgroundColor = var(--color-danger);
+                    statusElement.classList.add('alert-danger');
                 }
-            } else {
-                // Suscripción Activa
+            } 
+            // 2. ACTIVA
+            else {
                 document.body.classList.remove('app-blocked');
                 const daysLeft = Math.ceil((subData.expiryDate - now) / (24 * 60 * 60 * 1000));
                 statusElement.innerHTML = `✅ Suscripción Activa. Quedan ${daysLeft} días.`;
-                statusElement.style.backgroundColor = var(--color-success);
+                statusElement.classList.add('alert-success');
             }
         }
 
-        // Función simulada de pago. En la vida real, se activaría al recibir la confirmación de tu link de pago.
+        /**
+         * Simula el pago de la suscripción, activándola por 30 días.
+         * Responde a la pregunta "¿Para qué es Simular Pago (Test)?".
+         */
         function simularPagoExitoso() {
             const expiryDate = new Date().getTime() + SUB_DURATION_MS; // 30 días
             const subData = { expiryDate: expiryDate };
             localStorage.setItem(SUBSCRIPTION_KEY, JSON.stringify(subData));
-            alert("¡Pago simulado exitoso! Suscripción activada por 30 días.");
+            alert("¡Pago simulado exitoso! Suscripción activada por 30 días. Verifica el estado en el encabezado.");
             verificarSuscripcion();
         }
 
@@ -279,16 +320,17 @@
 
         function obtenerMovimientos() {
             const movimientos = localStorage.getItem(STORAGE_KEY);
-            // Se usa JSON.parse para convertir el texto guardado en objeto de JavaScript
             return movimientos ? JSON.parse(movimientos) : [];
         }
 
         function guardarMovimientos(movimientos) {
-            // Se usa JSON.stringify para convertir el objeto de JavaScript a texto antes de guardar
             localStorage.setItem(STORAGE_KEY, JSON.stringify(movimientos));
             renderizarResumen();
         }
 
+        /**
+         * Agrega un nuevo movimiento (venta, gasto, compra).
+         */
         function agregarMovimiento() {
             if (document.body.classList.contains('app-blocked')) {
                 alert("La aplicación está bloqueada. Por favor, renueva tu suscripción para continuar.");
@@ -300,7 +342,7 @@
             const producto = document.getElementById('producto').value.trim();
 
             if (monto > 0 && producto) {
-                const hoy = new Date().toLocaleDateString('es-AR');
+                const hoy = new Date().toLocaleDateString('es-AR', { timeZone: 'America/Argentina/Buenos_Aires' });
                 const nuevoMovimiento = {
                     id: Date.now(), 
                     fecha: hoy,
@@ -318,51 +360,64 @@
                 document.getElementById('monto').value = '';
                 document.getElementById('producto').value = '';
             } else {
-                alert("Por favor, ingresa un monto válido y una descripción del producto.");
+                alert("Por favor, ingresa un monto válido (mayor a 0) y una descripción del producto.");
             }
         }
 
+        /**
+         * Elimina un movimiento por su ID (para corregir errores de carga).
+         */
         function eliminarMovimiento(id) {
-            if (!confirm("¿Seguro que deseas eliminar este movimiento?")) return;
+            if (!confirm("¿Seguro que deseas eliminar este movimiento? Esta acción no se puede deshacer.")) return;
             
             const movimientos = obtenerMovimientos();
             const nuevosMovimientos = movimientos.filter(mov => mov.id !== id);
             guardarMovimientos(nuevosMovimientos);
         }
 
+        /**
+         * Calcula los totales, actualiza el resumen diario y el histórico.
+         */
         function renderizarResumen() {
             const movimientos = obtenerMovimientos();
-            const hoy = new Date().toLocaleDateString('es-AR');
+            // Aseguramos que la fecha de hoy sea consistente con la usada al guardar
+            const hoy = new Date().toLocaleDateString('es-AR', { timeZone: 'America/Argentina/Buenos_Aires' });
             
-            // Filtrar solo movimientos de hoy
             const movimientosDia = movimientos.filter(mov => mov.fecha === hoy);
 
             let totalVentas = 0;
+            let totalCompras = 0;
             let totalGastos = 0;
-            const productosVendidos = {}; // Para el Top Ventas
+            const productosVendidos = {}; 
 
             movimientosDia.forEach(mov => {
                 if (mov.tipo === 'venta') {
                     totalVentas += mov.monto;
-                    // Contar productos vendidos
                     productosVendidos[mov.producto] = (productosVendidos[mov.producto] || 0) + mov.monto;
-                } else if (mov.tipo === 'gasto' || mov.tipo === 'compra') {
+                } else if (mov.tipo === 'compra') {
+                    totalCompras += mov.monto;
+                } else if (mov.tipo === 'gasto') {
                     totalGastos += mov.monto;
                 }
             });
 
-            const gananciaDia = totalVentas - totalGastos;
+            const totalEgresos = totalCompras + totalGastos;
+            const gananciaDia = totalVentas - totalEgresos;
 
-            // Actualizar Resumen
+            // Actualizar Resumen con separación de Compras y Gastos
             document.getElementById('total-ventas').textContent = `$${totalVentas.toFixed(2)}`;
+            document.getElementById('total-compras').textContent = `$${totalCompras.toFixed(2)}`;
             document.getElementById('total-gastos').textContent = `$${totalGastos.toFixed(2)}`;
-            document.getElementById('ganancia-dia').textContent = `$${gananciaDia.toFixed(2)}`;
-            document.getElementById('ganancia-dia').style.color = gananciaDia >= 0 ? var(--color-success) : var(--color-danger);
+            
+            const gananciaElement = document.getElementById('ganancia-valor');
+            gananciaElement.textContent = `$${gananciaDia.toFixed(2)}`;
+            gananciaElement.style.color = gananciaDia >= 0 ? 'var(--color-success)' : 'var(--color-danger)';
 
-            // Actualizar Detalle
+            // Actualizar Detalle de Movimientos
             const listaMov = document.getElementById('lista-movimientos');
             listaMov.innerHTML = '';
-            movimientosDia.reverse().forEach(mov => {
+            // Mostrar los movimientos más recientes primero (ordenados por timestamp descendente)
+            movimientosDia.sort((a, b) => b.timestamp - a.timestamp).forEach(mov => {
                 const li = document.createElement('li');
                 const signo = mov.tipo === 'venta' ? '+' : '-';
                 const claseMonto = mov.tipo === 'venta' ? 'monto-venta' : 'monto-gasto';
@@ -379,10 +434,9 @@
             const topProductosList = document.getElementById('lista-top-productos');
             topProductosList.innerHTML = '';
             
-            // Convertir objeto a array para ordenar
             const sortedProductos = Object.entries(productosVendidos)
-                .sort(([, a], [, b]) => b - a) // Ordenar de mayor a menor monto
-                .slice(0, 5); // Tomar solo el top 5
+                .sort(([, a], [, b]) => b - a) 
+                .slice(0, 5); // Top 5
 
             if (sortedProductos.length === 0) {
                  topProductosList.innerHTML = '<li>Aún no hay ventas registradas hoy.</li>';
@@ -395,24 +449,30 @@
             }
         }
 
+        /**
+         * Borra todos los datos del día actual.
+         */
         function borrarDatosDia() {
-            if (!confirm("¡ATENCIÓN! ¿Estás seguro de que quieres BORRAR TODOS los movimientos de HOY? Esta acción es irreversible.")) {
+            const hoy = new Date().toLocaleDateString('es-AR', { timeZone: 'America/Argentina/Buenos_Aires' });
+            
+            if (!confirm(`¡ATENCIÓN! ¿Estás seguro de que quieres BORRAR TODOS los ${obtenerMovimientos().filter(mov => mov.fecha === hoy).length} movimientos de HOY (${hoy})? Esta acción es irreversible. Recuerda exportar si quieres conservar el registro.`)) {
                 return;
             }
             
             const movimientos = obtenerMovimientos();
-            const hoy = new Date().toLocaleDateString('es-AR');
-            
             // Filtra y mantiene solo los movimientos que NO son de hoy
             const movimientosRestantes = movimientos.filter(mov => mov.fecha !== hoy);
             
             guardarMovimientos(movimientosRestantes);
-            alert("Los movimientos del día han sido borrados con éxito.");
+            alert("Los movimientos del día han sido borrados con éxito. Se mantiene el histórico de otros días.");
         }
 
+        /**
+         * Exporta el resumen del día a un archivo CSV.
+         */
         function exportarResumen() {
             const movimientos = obtenerMovimientos();
-            const hoy = new Date().toLocaleDateString('es-AR');
+            const hoy = new Date().toLocaleDateString('es-AR', { timeZone: 'America/Argentina/Buenos_Aires' });
             const movimientosDia = movimientos.filter(mov => mov.fecha === hoy);
             
             if (movimientosDia.length === 0) {
@@ -421,11 +481,13 @@
             }
 
             // Crear encabezados del CSV
-            let csvContent = "data:text/csv;charset=utf-8,ID,Fecha,Tipo,Producto,Monto\n";
+            let csvContent = "data:text/csv;charset=utf-8,Tipo,Monto,Producto,Fecha\n";
 
             // Añadir datos
             movimientosDia.forEach(mov => {
-                const row = [mov.id, mov.fecha, mov.tipo, mov.producto.replace(/,/g, ''), mov.monto.toFixed(2)].join(',');
+                // Se reemplazan comas en el producto para evitar problemas en el CSV
+                const cleanProduct = mov.producto.replace(/,/g, ' '); 
+                const row = [mov.tipo, mov.monto.toFixed(2), cleanProduct, mov.fecha].join(',');
                 csvContent += row + "\n";
             });
 
@@ -434,9 +496,10 @@
             const link = document.createElement("a");
             link.setAttribute("href", encodedUri);
             link.setAttribute("download", `resumen_caja_${hoy.replace(/\//g, '-')}.csv`);
-            document.body.appendChild(link); // Necesario para Firefox
+            document.body.appendChild(link);
             link.click();
             document.body.removeChild(link);
+            alert("Resumen del día exportado con éxito.");
         }
 
         // Iniciar la aplicación al cargar la página
@@ -444,8 +507,8 @@
             verificarSuscripcion();
             renderizarResumen(); 
             
-            // Configurar la verificación de suscripción cada hora (para el contador)
-            setInterval(verificarSuscripcion, 60 * 60 * 1000); 
+            // Configurar la verificación de suscripción cada 1 minuto (para el contador de 24h)
+            setInterval(verificarSuscripcion, 60 * 1000); 
         });
 
     </script>
