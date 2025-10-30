@@ -155,15 +155,15 @@
         #lista-movimientos li {
             padding: 8px 0;
             border-bottom: 1px solid #eee;
-            display: flex; /* Usamos flexbox para alinear */
-            justify-content: space-between; /* Espacia los elementos */
+            display: flex; 
+            justify-content: space-between; 
             align-items: center;
             font-size: 0.9em;
         }
 
         #lista-movimientos li span:first-child {
-            flex-grow: 1; /* Permite que la descripción ocupe el espacio disponible */
-            margin-right: 10px; /* Pequeño espacio entre descripción y monto */
+            flex-grow: 1; 
+            margin-right: 10px; 
         }
 
         .monto-venta { color: var(--color-success); font-weight: bold; text-align: right; min-width: 70px; }
@@ -175,7 +175,7 @@
             color: var(--color-danger);
             cursor: pointer;
             font-size: 1.1em;
-            margin-left: 5px; /* Pequeño espacio a la izquierda del botón */
+            margin-left: 5px; 
         }
         
         /* Suscripción */
@@ -196,7 +196,7 @@
             background-color: #ccc;
             color: #666;
             cursor: not-allowed;
-            pointer-events: none; /* Evita el click */
+            pointer-events: none; 
         }
         
         /* Bloqueo */
@@ -495,7 +495,7 @@
             }
         }
         
-        // --- FUNCIONES DE CAJA Y ALMACENAMIENTO (Actualizadas para vista corregida) ---
+        // --- FUNCIONES DE CAJA Y ALMACENAMIENTO ---
         
         function obtenerMovimientos() { 
             const movimientos = localStorage.getItem(STORAGE_KEY);
@@ -519,26 +519,35 @@
             
             const productoNormalizado = normalizarProducto(productoInput);
 
-            if (monto > 0 && productoNormalizado) {
-                const hoy = new Date().toLocaleDateString('es-AR', { timeZone: 'America/Argentina/Buenos_Aires' });
-                const nuevoMovimiento = {
-                    id: Date.now(), 
-                    fecha: hoy,
-                    tipo: tipo,
-                    monto: monto,
-                    producto: productoNormalizado, 
-                    timestamp: Date.now()
-                };
-
-                const movimientos = obtenerMovimientos();
-                movimientos.push(nuevoMovimiento);
-                guardarMovimientos(movimientos);
-
-                document.getElementById('monto').value = '';
-                document.getElementById('producto').value = '';
-            } else {
-                alert("Por favor, ingresa un monto válido y una descripción del producto.");
+            // Validación de Monto
+            if (isNaN(monto) || monto <= 0) {
+                 alert("Por favor, ingresa un monto válido y mayor a cero.");
+                 return;
             }
+            
+            // Validación de Producto
+            if (!productoNormalizado) {
+                 alert("Por favor, ingresa una descripción del producto.");
+                 return;
+            }
+
+
+            const hoy = new Date().toLocaleDateString('es-AR', { timeZone: 'America/Argentina/Buenos_Aires' });
+            const nuevoMovimiento = {
+                id: Date.now(), 
+                fecha: hoy,
+                tipo: tipo,
+                monto: monto,
+                producto: productoNormalizado, 
+                timestamp: Date.now()
+            };
+
+            const movimientos = obtenerMovimientos();
+            movimientos.push(nuevoMovimiento);
+            guardarMovimientos(movimientos);
+
+            document.getElementById('monto').value = '';
+            document.getElementById('producto').value = '';
         }
 
         function renderizarResumen() { 
@@ -554,7 +563,8 @@
             movimientosDia.forEach(mov => {
                 if (mov.tipo === 'venta') {
                     totalVentas += mov.monto;
-                    productosContador[mov.mov.producto] = (productosContador[mov.producto] || 0) + 1; 
+                    // LÍNEA CORREGIDA
+                    productosContador[mov.producto] = (productosContador[mov.producto] || 0) + 1; 
                 } else if (mov.tipo === 'compra') {
                     totalCompras += mov.monto;
                 } else if (mov.tipo === 'gasto') {
@@ -573,7 +583,7 @@
             gananciaElement.textContent = `$${gananciaDia.toFixed(2)}`;
             gananciaElement.style.color = gananciaDia >= 0 ? 'var(--color-success)' : 'var(--color-danger)';
 
-            // --- ACTUALIZACIÓN CRÍTICA: DETALLE DE MOVIMIENTOS ---
+            // --- DETALLE DE MOVIMIENTOS (Alineación y corrección) ---
             const listaMov = document.getElementById('lista-movimientos');
             listaMov.innerHTML = '';
             movimientosDia.sort((a, b) => b.timestamp - a.timestamp).forEach(mov => {
@@ -581,7 +591,7 @@
                 const signo = mov.tipo === 'venta' ? '+' : '-';
                 const claseMonto = mov.tipo === 'venta' ? 'monto-venta' : 'monto-gasto';
                 
-                // *** Aquí aplicamos la normalización y el alineamiento ***
+                // Aplicamos la normalización al producto antes de mostrarlo
                 const productoParaMostrar = normalizarProducto(mov.producto); 
                 li.innerHTML = `
                     <span>${productoParaMostrar} (${mov.tipo})</span>
@@ -591,6 +601,7 @@
                 listaMov.appendChild(li);
             });
             
+            // --- TOP PRODUCTOS (Corrección) ---
             const topProductosList = document.getElementById('lista-top-productos');
             topProductosList.innerHTML = '';
             
@@ -603,7 +614,7 @@
             } else {
                 sortedProductos.forEach(([producto, cantidad]) => {
                     const li = document.createElement('li');
-                    // *** Normalizamos aquí también el nombre del producto ***
+                    // Aplicamos la normalización al producto antes de mostrarlo
                     const productoNormalizadoParaTop = normalizarProducto(producto);
                     li.innerHTML = `<strong>${productoNormalizadoParaTop}</strong>: ${cantidad} ventas`;
                     topProductosList.appendChild(li);
@@ -638,7 +649,6 @@
             let csvContent = "data:text/csv;charset=utf-8,Tipo,Monto,Producto,Fecha\n";
 
             movimientosDia.forEach(mov => {
-                // *** Normalizamos el producto para el CSV también ***
                 const cleanProduct = normalizarProducto(mov.producto).replace(/,/g, ' '); 
                 const row = [mov.tipo, mov.monto.toFixed(2), cleanProduct, mov.fecha].join(',');
                 csvContent += row + "\n";
