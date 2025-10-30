@@ -231,6 +231,39 @@
             border: 1px dashed #ced4da;
             word-break: break-all;
         }
+
+        /* Estilos para Atajos Rápidos */
+        #atajos-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            justify-content: flex-start;
+        }
+        
+        .atajo-btn {
+            background-color: #e9ecef;
+            color: var(--color-text);
+            padding: 10px 15px;
+            border-radius: 6px;
+            border: 1px solid #ced4da;
+            font-size: 0.9em;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background-color 0.2s, transform 0.1s;
+            flex: 0 0 calc(50% - 5px); /* Dos botones por fila */
+            box-sizing: border-box;
+            text-align: left;
+        }
+
+        .atajo-btn:hover {
+            background-color: #dee2e6;
+        }
+
+        .atajo-btn strong {
+            display: block;
+            font-size: 1.1em;
+            color: var(--color-success);
+        }
         
     </style>
 </head>
@@ -258,6 +291,15 @@
             <input type="text" id="producto" placeholder="Descripción o Nombre del Producto" required>
             <button onclick="agregarMovimiento()">Agregar</button>
             <button id="dev-license-btn" onclick="activarLicenciaAdmin()" title="Activa la licencia permanentemente (Sólo para ti)">🔑 Activar Licencia DEV</button>
+        </section>
+
+        <section id="atajos-rapidos">
+            <h2>🏷️ Atajos Rápidos (Venta)</h2>
+            <div id="atajos-container">
+                </div>
+            <p style="font-size: 0.8em; color: #6c757d; margin-top: 10px;">
+                * Clic para llenar el formulario con el producto y precio.
+            </p>
         </section>
 
         <section id="resumen-diario">
@@ -314,13 +356,24 @@
         // CLAVES IMPORTANTES
         const STORAGE_KEY = 'miCaja_movimientos';
         const SUBSCRIPTION_KEY = 'miCaja_subscripcion';
-        const CLIENT_ID_KEY = 'miCaja_client_id'; // Nueva clave para el ID del usuario
+        const CLIENT_ID_KEY = 'miCaja_client_id'; 
         const GRACE_PERIOD_MS = 24 * 60 * 60 * 1000;
         const SUB_DURATION_MS = 30 * 24 * 60 * 60 * 1000;
         const ADMIN_KEY = 'miCaja_admin_license';
         const ADMIN_UNLOCK_PHRASE = 'desarrollador-maestro'; 
         
-        // --- FUNCIONES DE NORMALIZACIÓN (AUTOCORRECCIÓN) ---
+        // --- LISTA DE ATAJOS RÁPIDOS (PRODUCTOS MÁS VENDIDOS) ---
+        const ATAJOS_RAPIDOS = [
+            { nombre: 'Gaseosa Grande', monto: 1500 },
+            { nombre: 'Azúcar x 1Kg', monto: 500 },
+            { nombre: 'Pan (Kilo)', monto: 800 },
+            { nombre: 'Leche (Litro)', monto: 450 },
+            { nombre: 'Fideos Común', monto: 350 },
+            { nombre: 'Arroz x 1Kg', monto: 650 },
+        ];
+
+
+        // --- FUNCIONES DE NORMALIZACIÓN (AUTOCORRECCIÓN REFORZADA) ---
         
         const removerAcentos = (str) => {
             return str.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
@@ -331,20 +384,43 @@
             
             let limpio = producto.toLowerCase().trim();
             limpio = removerAcentos(limpio).replace(/[^a-z0-9\s]/g, '');
+            
+            // --- MAPEO MANUAL REFORZADO (Asegura consistencia con Atajos) ---
+            
+            if (limpio.includes('azucar') || limpio.includes('asucar')) return 'Azúcar x 1Kg'; 
+            if (limpio.includes('leche') || limpio.includes('lecche') || limpio.includes('lechhes')) return 'Leche (Litro)'; 
+            if (limpio.includes('pan') || limpio.includes('panes')) return 'Pan (Kilo)'; 
+            if (limpio.includes('gaseosa') || limpio.includes('coca') || limpio.includes('pepsi')) return 'Gaseosa Grande'; 
+            if (limpio.includes('fideo') || limpio.includes('tallarin') || limpio.includes('pastas')) return 'Fideos Común'; 
+            if (limpio.includes('arroz') || limpio.includes('arros')) return 'Arroz x 1Kg'; 
+            if (limpio.includes('proveedor') || limpio.includes('probeor')) return 'Proveedor'; 
 
-            // --- MAPEO MANUAL AMPLIADO ---
-            // CORRECCIÓN: Usamos includes para capturar errores de tipeo
-            if (limpio.includes('azucar') || limpio.includes('asucar')) return 'Azúcar';
-            if (limpio.includes('pan') || limpio.includes('panes')) return 'Pan';
-            if (limpio.includes('gaseosa') || limpio.includes('coca') || limpio.includes('pepsi')) return 'Gaseosa';
-            if (limpio.includes('leche') || limpio.includes('lecche')) return 'Leche';
-            if (limpio.includes('fideo') || limpio.includes('tallarin') || limpio.includes('pastas')) return 'Fideos';
-            if (limpio.includes('arroz') || limpio.includes('arros')) return 'Arroz'; // Corrección para "Arros"
-            if (limpio.includes('proveedor') || limpio.includes('probeor')) return 'Proveedor'; // Corrección para "Probeor"
+            // Si no está mapeado, se limpia y se capitaliza solo la primera letra.
+            let productoLimpio = producto.trim().toLowerCase();
+            return productoLimpio.charAt(0).toUpperCase() + productoLimpio.slice(1);
+        }
 
+        // --- FUNCIONES DE ATAJOS RÁPIDOS ---
 
-            // Si no está mapeado, capitaliza la primera letra para que se vea ordenado.
-            return producto.charAt(0).toUpperCase() + producto.slice(1).toLowerCase();
+        function cargarAtajos() {
+            const container = document.getElementById('atajos-container');
+            container.innerHTML = ''; 
+
+            ATAJOS_RAPIDOS.forEach(atajo => {
+                const button = document.createElement('button');
+                button.className = 'atajo-btn';
+                button.innerHTML = `${atajo.nombre} <br><strong>$${atajo.monto.toFixed(2)}</strong>`;
+                button.setAttribute('onclick', `usarAtajo('${atajo.nombre.replace(/'/g, "\\'")}', ${atajo.monto})`);
+                container.appendChild(button);
+            });
+        }
+
+        function usarAtajo(nombre, monto) {
+            document.getElementById('tipo-movimiento').value = 'venta'; 
+            document.getElementById('monto').value = monto.toFixed(2);
+            document.getElementById('producto').value = nombre; 
+            
+            document.querySelector('#input-section button:first-of-type').focus();
         }
 
         // --- GESTIÓN DE CLIENTES Y ACTIVACIÓN REMOTA (Sin cambios) ---
@@ -498,21 +574,17 @@
             const monto = parseFloat(document.getElementById('monto').value);
             const productoInput = document.getElementById('producto').value;
             
-            // **IMPORTANTE**: Normalizamos ANTES de validar y guardar.
             const productoNormalizado = normalizarProducto(productoInput);
 
-            // Validación de Monto
             if (isNaN(monto) || monto <= 0) {
                  alert("Por favor, ingresa un monto válido y mayor a cero.");
                  return;
             }
             
-            // Si la normalización devuelve un valor (no está vacío)
             if (!productoNormalizado) {
                  alert("Por favor, ingresa una descripción del producto.");
                  return;
             }
-
 
             const hoy = new Date().toLocaleDateString('es-AR', { timeZone: 'America/Argentina/Buenos_Aires' });
             const nuevoMovimiento = {
@@ -520,7 +592,6 @@
                 fecha: hoy,
                 tipo: tipo,
                 monto: monto,
-                // **GUARDAMOS EL NOMBRE YA CORREGIDO/NORMALIZADO**
                 producto: productoNormalizado, 
                 timestamp: Date.now()
             };
@@ -544,8 +615,6 @@
             const productosContador = {}; 
 
             movimientosDia.forEach(mov => {
-                // **IMPORTANTE**: Aplicamos la normalización al producto GUARDADO
-                // para que el resumen y el contador funcionen con nombres consistentes.
                 const productoConsistente = normalizarProducto(mov.producto); 
 
                 if (mov.tipo === 'venta') {
@@ -569,7 +638,7 @@
             gananciaElement.textContent = `$${gananciaDia.toFixed(2)}`;
             gananciaElement.style.color = gananciaDia >= 0 ? 'var(--color-success)' : 'var(--color-danger)';
 
-            // --- DETALLE DE MOVIMIENTOS (Alineación y corrección) ---
+            // --- DETALLE DE MOVIMIENTOS ---
             const listaMov = document.getElementById('lista-movimientos');
             listaMov.innerHTML = '';
             movimientosDia.sort((a, b) => b.timestamp - a.timestamp).forEach(mov => {
@@ -577,10 +646,7 @@
                 const signo = mov.tipo === 'venta' ? '+' : '-';
                 const claseMonto = mov.tipo === 'venta' ? 'monto-venta' : 'monto-gasto';
                 
-                // Usamos la normalización al producto para mostrar el nombre corregido
                 const productoParaMostrar = normalizarProducto(mov.producto); 
-                
-                // Asignamos la etiqueta correcta para compras/gastos
                 const tipoEtiqueta = (mov.tipo === 'compra') ? 'compra' : (mov.tipo === 'gasto' ? 'gasto' : 'venta');
 
 
@@ -592,11 +658,10 @@
                 listaMov.appendChild(li);
             });
             
-            // --- TOP PRODUCTOS (Corrección) ---
+            // --- TOP PRODUCTOS ---
             const topProductosList = document.getElementById('lista-top-productos');
             topProductosList.innerHTML = '';
             
-            // El conteo ya usa los nombres consistentes (corregidos)
             const sortedProductos = Object.entries(productosContador)
                 .sort(([, a], [, b]) => b - a) 
                 .slice(0, 5);
@@ -606,7 +671,6 @@
             } else {
                 sortedProductos.forEach(([producto, cantidad]) => {
                     const li = document.createElement('li');
-                    // El producto aquí ya viene limpio de la normalización
                     li.innerHTML = `<strong>${producto}</strong>: ${cantidad} ventas`;
                     topProductosList.appendChild(li);
                 });
@@ -668,6 +732,7 @@
             generarClienteId(); 
             verificarAccesoDev(); 
             verificarSuscripcion();
+            cargarAtajos(); 
             renderizarResumen(); 
             
             setInterval(verificarSuscripcion, 60 * 1000); 
