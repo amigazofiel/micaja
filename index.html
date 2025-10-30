@@ -43,7 +43,7 @@
             padding: 5px;
             border-radius: 5px;
             background-color: rgba(255, 255, 255, 0.2);
-            transition: background-color 0.5s; /* Animación para el cambio de estado */
+            transition: background-color 0.5s;
         }
 
         main {
@@ -94,8 +94,8 @@
             background-color: #218838;
         }
         
-        #input-section button:nth-child(6) { /* Botón Simular Pago */
-            background-color: #808080;
+        #input-section button:nth-child(6) { /* Botón Activar Licencia DEV */
+            background-color: #5d5d5d;
             color: white;
             border: none;
         }
@@ -185,10 +185,10 @@
         
         /* Bloqueo */
         .app-blocked #input-section,
-        .app-blocked #resumen-diario button:not([onclick="exportarResumen()"]):not(.pay-button),
+        .app-blocked #resumen-diario button:not([onclick="exportarResumen()"]),
         .app-blocked #historico {
             opacity: 0.3;
-            pointer-events: none; /* Deshabilita clics */
+            pointer-events: none;
         }
         
         .app-blocked #suscripcion {
@@ -219,7 +219,7 @@
             <input type="number" id="monto" placeholder="Monto (ej: 150.50)" step="0.01" required>
             <input type="text" id="producto" placeholder="Descripción o Nombre del Producto" required>
             <button onclick="agregarMovimiento()">Agregar</button>
-            <button onclick="simularPagoExitoso()" title="Solo para pruebas - Eliminar en producción">Simular Pago (Test)</button>
+            <button onclick="activarLicenciaAdmin()" title="Activa la licencia permanentemente (Sólo para ti)">🔑 Activar Licencia DEV</button>
         </section>
 
         <section id="resumen-diario">
@@ -248,6 +248,15 @@
             <p>Controla tu negocio, alivia tu mente.</p>
             <a href="[Tu Link de Pago Aquí]" target="_blank" class="pay-button">Pagar Suscripción Ahora ($100/mes)</a>
         </section>
+        
+        <section id="admin-panel" style="border: 2px solid orange;">
+            <h2>🔧 Panel de Control (ADMIN)</h2>
+            <p>Usa esto para gestionar las suscripciones de los clientes después de recibir su pago.</p>
+            
+            <button onclick="renovarSuscripcionCliente()" style="background-color: orange; color: black; border: none; padding: 10px; width: 100%; font-weight: bold; cursor: pointer;">
+                Renovar Suscripción (Simular Pago Cliente)
+            </button>
+        </section>
     </main>
 
     <footer>
@@ -262,18 +271,41 @@
         const SUBSCRIPTION_KEY = 'miCaja_subscripcion';
         const GRACE_PERIOD_MS = 24 * 60 * 60 * 1000; // 24 horas de gracia
         const SUB_DURATION_MS = 30 * 24 * 60 * 60 * 1000; // 30 días de suscripción
+        const ADMIN_KEY = 'miCaja_admin_license'; // Clave para tu licencia de desarrollador
 
-        // --- FUNCIONES DE SUBSCRIPCIÓN Y BLOQUEO ---
+        // --- FUNCIONES DE ACCESO PARA EL DESARROLLADOR ---
+
+        /**
+         * Función para que el desarrollador (tú) active una licencia permanente
+         */
+        function activarLicenciaAdmin() {
+            if (confirm("¿Confirmar activación de licencia permanente para desarrollo? ESTO DESBLOQUEARÁ LA APP PARA SIEMPRE EN ESTE NAVEGADOR.")) {
+                localStorage.setItem(ADMIN_KEY, 'true');
+                alert("Licencia de Administrador activada. La aplicación ya no se bloqueará.");
+                verificarSuscripcion();
+            }
+        }
+
+
+        // --- FUNCIONES DE SUBSCRIPCIÓN Y BLOQUEO (LENGUAJE MEJORADO) ---
 
         /**
          * Verifica el estado de la suscripción y actualiza la interfaz.
          */
         function verificarSuscripcion() {
-            const subData = JSON.parse(localStorage.getItem(SUBSCRIPTION_KEY));
-            const now = new Date().getTime();
+            const isAdmin = localStorage.getItem(ADMIN_KEY) === 'true';
             const statusElement = document.getElementById('subscription-status');
             
-            // Limpiar clases de estado
+            if (isAdmin) {
+                document.body.classList.remove('app-blocked');
+                statusElement.innerHTML = `⭐ **LICENCIA DEV ACTIVA**: Uso ilimitado.`;
+                statusElement.classList.remove('alert-warning', 'alert-danger');
+                statusElement.classList.add('alert-success');
+                return; 
+            }
+            
+            const subData = JSON.parse(localStorage.getItem(SUBSCRIPTION_KEY));
+            const now = new Date().getTime();
             statusElement.className = '';
 
             // 1. SIN DATOS / EXPIRADO
@@ -285,13 +317,17 @@
                     document.body.classList.remove('app-blocked');
                     const timeLeft = graceExpiry - now;
                     const hoursLeft = Math.ceil(timeLeft / (60 * 60 * 1000));
-                    statusElement.innerHTML = `⚠️ **ALERTA**: Suscripción por vencer. Quedan ${hoursLeft} horas para el bloqueo.`;
+                    
+                    // LENGUAJE AMABLE
+                    statusElement.innerHTML = `⚠️ **AVISO AMABLE**: Tu suscripción expira pronto. Tienes ${hoursLeft} horas para renovar y mantener tu control.`;
                     statusElement.classList.add('alert-warning');
                 } 
                 // 1b. BLOQUEO TOTAL
                 else {
                     document.body.classList.add('app-blocked');
-                    statusElement.innerHTML = `⛔ **BLOQUEADA**: Suscripción Vencida. Paga para desbloquear.`;
+                    
+                    // LENGUAJE AMABLE Y PROFESIONAL
+                    statusElement.innerHTML = `⛔ **CONTROL SUSPENDIDO**: Gracias por usar Mi Caja. Para reanudar el acceso a todas las funciones y tu historial, por favor, renueva tu suscripción.`;
                     statusElement.classList.add('alert-danger');
                 }
             } 
@@ -299,22 +335,22 @@
             else {
                 document.body.classList.remove('app-blocked');
                 const daysLeft = Math.ceil((subData.expiryDate - now) / (24 * 60 * 60 * 1000));
-                statusElement.innerHTML = `✅ Suscripción Activa. Quedan ${daysLeft} días.`;
+                statusElement.innerHTML = `✅ Suscripción Activa. ¡Disfruta de tu control! Quedan ${daysLeft} días.`;
                 statusElement.classList.add('alert-success');
             }
         }
 
         /**
-         * Simula el pago de la suscripción, activándola por 30 días.
-         * Responde a la pregunta "¿Para qué es Simular Pago (Test)?".
+         * Función para renovar la suscripción de un cliente después de recibir el pago.
          */
-        function simularPagoExitoso() {
+        function renovarSuscripcionCliente() {
             const expiryDate = new Date().getTime() + SUB_DURATION_MS; // 30 días
             const subData = { expiryDate: expiryDate };
             localStorage.setItem(SUBSCRIPTION_KEY, JSON.stringify(subData));
-            alert("¡Pago simulado exitoso! Suscripción activada por 30 días. Verifica el estado en el encabezado.");
+            alert("¡Suscripción de cliente renovada con éxito por 30 días!");
             verificarSuscripcion();
         }
+
 
         // --- FUNCIONES DE CAJA Y ALMACENAMIENTO ---
 
@@ -333,7 +369,7 @@
          */
         function agregarMovimiento() {
             if (document.body.classList.contains('app-blocked')) {
-                alert("La aplicación está bloqueada. Por favor, renueva tu suscripción para continuar.");
+                alert("La aplicación está suspendida. Por favor, renueva tu suscripción para continuar.");
                 return;
             }
             
@@ -380,9 +416,7 @@
          */
         function renderizarResumen() {
             const movimientos = obtenerMovimientos();
-            // Aseguramos que la fecha de hoy sea consistente con la usada al guardar
             const hoy = new Date().toLocaleDateString('es-AR', { timeZone: 'America/Argentina/Buenos_Aires' });
-            
             const movimientosDia = movimientos.filter(mov => mov.fecha === hoy);
 
             let totalVentas = 0;
@@ -404,7 +438,7 @@
             const totalEgresos = totalCompras + totalGastos;
             const gananciaDia = totalVentas - totalEgresos;
 
-            // Actualizar Resumen con separación de Compras y Gastos
+            // Actualizar Resumen
             document.getElementById('total-ventas').textContent = `$${totalVentas.toFixed(2)}`;
             document.getElementById('total-compras').textContent = `$${totalCompras.toFixed(2)}`;
             document.getElementById('total-gastos').textContent = `$${totalGastos.toFixed(2)}`;
@@ -416,7 +450,6 @@
             // Actualizar Detalle de Movimientos
             const listaMov = document.getElementById('lista-movimientos');
             listaMov.innerHTML = '';
-            // Mostrar los movimientos más recientes primero (ordenados por timestamp descendente)
             movimientosDia.sort((a, b) => b.timestamp - a.timestamp).forEach(mov => {
                 const li = document.createElement('li');
                 const signo = mov.tipo === 'venta' ? '+' : '-';
@@ -436,7 +469,7 @@
             
             const sortedProductos = Object.entries(productosVendidos)
                 .sort(([, a], [, b]) => b - a) 
-                .slice(0, 5); // Top 5
+                .slice(0, 5);
 
             if (sortedProductos.length === 0) {
                  topProductosList.innerHTML = '<li>Aún no hay ventas registradas hoy.</li>';
@@ -455,12 +488,11 @@
         function borrarDatosDia() {
             const hoy = new Date().toLocaleDateString('es-AR', { timeZone: 'America/Argentina/Buenos_Aires' });
             
-            if (!confirm(`¡ATENCIÓN! ¿Estás seguro de que quieres BORRAR TODOS los ${obtenerMovimientos().filter(mov => mov.fecha === hoy).length} movimientos de HOY (${hoy})? Esta acción es irreversible. Recuerda exportar si quieres conservar el registro.`)) {
+            if (!confirm(`¡ATENCIÓN! ¿Estás seguro de que quieres BORRAR TODOS los movimientos de HOY (${hoy})? Esta acción es irreversible. Recuerda exportar si quieres conservar el registro.`)) {
                 return;
             }
             
             const movimientos = obtenerMovimientos();
-            // Filtra y mantiene solo los movimientos que NO son de hoy
             const movimientosRestantes = movimientos.filter(mov => mov.fecha !== hoy);
             
             guardarMovimientos(movimientosRestantes);
@@ -480,18 +512,14 @@
                 return;
             }
 
-            // Crear encabezados del CSV
             let csvContent = "data:text/csv;charset=utf-8,Tipo,Monto,Producto,Fecha\n";
 
-            // Añadir datos
             movimientosDia.forEach(mov => {
-                // Se reemplazan comas en el producto para evitar problemas en el CSV
                 const cleanProduct = mov.producto.replace(/,/g, ' '); 
                 const row = [mov.tipo, mov.monto.toFixed(2), cleanProduct, mov.fecha].join(',');
                 csvContent += row + "\n";
             });
 
-            // Descargar el archivo
             const encodedUri = encodeURI(csvContent);
             const link = document.createElement("a");
             link.setAttribute("href", encodedUri);
