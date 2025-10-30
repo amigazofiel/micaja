@@ -232,39 +232,57 @@
             word-break: break-all;
         }
 
-        /* Estilos para Atajos Rápidos */
-        #atajos-container {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 10px;
-            justify-content: flex-start;
+        /* Estilos para el Editor de Productos (Gestion Productos) */
+        #gestion-productos input, #gestion-productos button {
+            width: 100%;
+            margin-bottom: 8px;
         }
-        
-        .atajo-btn {
-            background-color: #e9ecef;
-            color: var(--color-text);
-            padding: 10px 15px;
-            border-radius: 6px;
+        #lista-categorias {
+            list-style: none;
+            padding: 0;
             border: 1px solid #ced4da;
-            font-size: 0.9em;
+            max-height: 250px;
+            overflow-y: auto;
+            margin-top: 10px;
+            border-radius: 5px;
+        }
+        .categoria-item {
+            padding: 8px 10px;
+            border-bottom: 1px solid #eee;
+            background-color: #f1f1f1;
             font-weight: bold;
+            color: var(--color-primary);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .producto-item {
+            padding: 5px 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px dotted #ccc;
+        }
+        .producto-item:last-child {
+            border-bottom: none;
+        }
+        .btn-producto-del {
+            background: none;
+            border: none;
+            color: var(--color-danger);
             cursor: pointer;
-            transition: background-color 0.2s, transform 0.1s;
-            flex: 0 0 calc(50% - 5px); /* Dos botones por fila */
-            box-sizing: border-box;
-            text-align: left;
+            font-size: 0.9em;
+            padding: 0 5px;
         }
-
-        .atajo-btn:hover {
-            background-color: #dee2e6;
+        .btn-cat-del {
+            background: var(--color-danger);
+            color: white;
+            border: none;
+            padding: 3px 6px;
+            border-radius: 3px;
+            font-size: 0.7em;
+            cursor: pointer;
         }
-
-        .atajo-btn strong {
-            display: block;
-            font-size: 1.1em;
-            color: var(--color-success);
-        }
-        
     </style>
 </head>
 <body>
@@ -300,15 +318,27 @@
             <button onclick="agregarMovimiento()">Agregar</button>
             <button id="dev-license-btn" onclick="activarLicenciaAdmin()" title="Activa la licencia permanentemente (Sólo para ti)">🔑 Activar Licencia DEV</button>
         </section>
-
-        <section id="atajos-rapidos">
-            <h2>🏷️ Atajos Rápidos (Venta)</h2>
-            <div id="atajos-container">
-                </div>
-            <p style="font-size: 0.8em; color: #6c757d; margin-top: 10px;">
-                * Clic para llenar el formulario con el producto y precio.
-            </p>
+        
+        <section id="gestion-productos">
+            <h2>🛒 Gestión de Productos y Categorías</h2>
+            <p>Personaliza tu lista de venta: agrega, modifica o elimina lo que no necesitas del listado general.</p>
+            
+            <hr>
+            <h3>Añadir Item</h3>
+            <input type="text" id="nueva-categoria-input" placeholder="Nombre de la nueva categoría (Ej: Frutas)">
+            <button onclick="agregarCategoria()" style="background-color: #007bff; color: white;">Añadir Categoría</button>
+            <input type="text" id="nuevo-producto-nombre" placeholder="Nombre del nuevo producto (Ej: Banana)">
+            <select id="categoria-select-add">
+                <option value="" disabled selected>Selecciona una categoría existente</option>
+            </select>
+            <button onclick="agregarProducto()" style="background-color: #007bff; color: white;">Añadir Producto a Categoría</button>
+            
+            <hr>
+            <h3>Lista Editable</h3>
+            <ul id="lista-categorias">
+                </ul>
         </section>
+
 
         <section id="resumen-diario">
             <h2>Resumen del Día</h2>
@@ -343,6 +373,8 @@
         
         <section id="admin-panel">
             <h2>🔧 Panel de Control (ADMIN)</h2>
+            <hr>
+            <h3>Activación Remota</h3>
             <p>1. Ingresa el ID de Cliente que te envió. 2. Genera el código y envíaselo al cliente.</p>
             
             <input type="text" id="cliente-id-input" placeholder="ID de Cliente (Ej: 1A3B-C4D5)" style="width: 100%; margin-bottom: 10px;">
@@ -365,13 +397,14 @@
         const STORAGE_KEY = 'miCaja_movimientos';
         const SUBSCRIPTION_KEY = 'miCaja_subscripcion';
         const CLIENT_ID_KEY = 'miCaja_client_id'; 
+        const PRODUCTOS_KEY = 'miCaja_productos_extensos'; 
         const GRACE_PERIOD_MS = 24 * 60 * 60 * 1000;
         const SUB_DURATION_MS = 30 * 24 * 60 * 60 * 1000;
         const ADMIN_KEY = 'miCaja_admin_license';
         const ADMIN_UNLOCK_PHRASE = 'desarrollador-maestro'; 
         
-        // --- BASE DE DATOS EXTENSA DE PRODUCTOS (Categorizado y se ordena alfabéticamente al cargar) ---
-        const PRODUCTOS_EXTENSOS = {
+        // --- BASE DE DATOS EXTENSA INICIAL (USADA SOLO LA PRIMERA VEZ) ---
+        const PRODUCTOS_INICIALES = {
             "Abarrotes y Despensa": [
                 "Aceite Comestible", "Arroz Blanco", "Atún en Lata", "Azúcar", "Café Molido", 
                 "Caldos y Sazonadores", "Fideos (Pasta Seca)", "Harina de Trigo", "Lentejas", 
@@ -399,33 +432,159 @@
             ]
         };
         
-        // --- LISTA DE ATAJOS RÁPIDOS (Para productos de precio fijo) ---
-        const ATAJOS_RAPIDOS = [
-            { nombre: 'Gaseosa (2.25L)', monto: 1500 },
-            { nombre: 'Azúcar', monto: 500 },
-            { nombre: 'Pan Francés (Kilo)', monto: 800 },
-            { nombre: 'Leche Entera', monto: 450 },
-            { nombre: 'Fideos (Pasta Seca)', monto: 350 },
-            { nombre: 'Arroz Blanco', monto: 650 },
-        ];
+        // --- FUNCIONES DE ALMACENAMIENTO DE PRODUCTOS ---
 
+        function obtenerProductos() {
+            const productosGuardados = localStorage.getItem(PRODUCTOS_KEY);
+            if (productosGuardados) {
+                return JSON.parse(productosGuardados);
+            }
+            // Si no hay productos guardados, inicializa con la lista extensa y la guarda
+            localStorage.setItem(PRODUCTOS_KEY, JSON.stringify(PRODUCTOS_INICIALES));
+            return PRODUCTOS_INICIALES;
+        }
+
+        function guardarProductos(productos) {
+            localStorage.setItem(PRODUCTOS_KEY, JSON.stringify(productos));
+            cargarSelectProductos(); // Recarga el select principal
+            cargarEditorProductos(); // Recarga el panel del editor
+        }
+
+
+        // --- FUNCIONES DEL EDITOR DE PRODUCTOS (GENERALES) ---
+
+        function agregarCategoria() {
+            const input = document.getElementById('nueva-categoria-input');
+            const nombre = input.value.trim();
+            if (!nombre) {
+                alert("El nombre de la categoría no puede estar vacío.");
+                return;
+            }
+            
+            const productos = obtenerProductos();
+            // Capitalizar la primera letra para consistencia
+            const nombreNormalizado = nombre.charAt(0).toUpperCase() + nombre.slice(1).toLowerCase();
+
+            if (productos.hasOwnProperty(nombreNormalizado)) {
+                alert("Esa categoría ya existe.");
+                return;
+            }
+            
+            productos[nombreNormalizado] = [];
+            guardarProductos(productos);
+            input.value = '';
+        }
+        
+        function eliminarCategoria(nombre) {
+            if (!confirm(`¿Estás seguro de que quieres eliminar la categoría "${nombre}"? ¡Se borrarán todos sus productos!`)) return;
+
+            const productos = obtenerProductos();
+            delete productos[nombre];
+            guardarProductos(productos);
+        }
+
+        function agregarProducto() {
+            const nombreInput = document.getElementById('nuevo-producto-nombre');
+            const categoriaSelect = document.getElementById('categoria-select-add');
+            
+            const nombre = nombreInput.value.trim();
+            const categoria = categoriaSelect.value;
+            
+            if (!nombre) {
+                alert("El nombre del producto no puede estar vacío.");
+                return;
+            }
+            if (!categoria) {
+                alert("Debes seleccionar una categoría.");
+                return;
+            }
+            
+            const productos = obtenerProductos();
+            // Capitalizar solo la primera letra del producto para consistencia
+            const nombreNormalizado = nombre.charAt(0).toUpperCase() + nombre.slice(1);
+            
+            // Evitar duplicados
+            if (productos[categoria].includes(nombreNormalizado)) {
+                alert("Ese producto ya existe en esta categoría.");
+                return;
+            }
+
+            productos[categoria].push(nombreNormalizado);
+            productos[categoria].sort(); // Ordenar alfabéticamente
+            guardarProductos(productos);
+            
+            nombreInput.value = '';
+        }
+        
+        function eliminarProducto(categoria, nombre) {
+            if (!confirm(`¿Estás seguro de que quieres eliminar "${nombre}"?`)) return;
+
+            const productos = obtenerProductos();
+            if (productos[categoria]) {
+                // Filtra el array, manteniendo solo los productos que NO coinciden con el nombre
+                productos[categoria] = productos[categoria].filter(p => p !== nombre); 
+                guardarProductos(productos);
+            }
+        }
+
+
+        function cargarEditorProductos() {
+            const productos = obtenerProductos();
+            const listaEditor = document.getElementById('lista-categorias');
+            const selectAdd = document.getElementById('categoria-select-add');
+            
+            listaEditor.innerHTML = '';
+            selectAdd.innerHTML = '<option value="" disabled selected>Selecciona una categoría existente</option>';
+            
+            const categoriasOrdenadas = Object.keys(productos).sort();
+
+            categoriasOrdenadas.forEach(categoria => {
+                // 1. Cargar el Select de adición
+                const option = document.createElement('option');
+                option.value = categoria;
+                option.textContent = categoria;
+                selectAdd.appendChild(option);
+                
+                // 2. Cargar la lista de edición
+                const catLi = document.createElement('li');
+                catLi.className = 'categoria-item';
+                catLi.innerHTML = `
+                    <span>${categoria}</span>
+                    <button class="btn-cat-del" onclick="eliminarCategoria('${categoria.replace(/'/g, "\\'")}')">Eliminar Cat.</button>
+                `;
+                listaEditor.appendChild(catLi);
+                
+                // Productos dentro de la categoría (ya están ordenados alfabéticamente)
+                productos[categoria].forEach(producto => {
+                    const prodLi = document.createElement('li');
+                    prodLi.className = 'producto-item';
+                    prodLi.innerHTML = `
+                        <span>${producto}</span>
+                        <button class="btn-producto-del" onclick="eliminarProducto('${categoria.replace(/'/g, "\\'")}', '${producto.replace(/'/g, "\\'")}')">🗑️</button>
+                    `;
+                    listaEditor.appendChild(prodLi);
+                });
+            });
+        }
+        
 
         // --- FUNCIONES DE CARGA Y NORMALIZACIÓN ---
 
         function cargarSelectProductos() {
+            const productos = obtenerProductos();
             const selectElement = document.getElementById('producto-select');
             
-            // Recorrer las categorías
-            const categoriasOrdenadas = Object.keys(PRODUCTOS_EXTENSOS).sort();
+            // Limpia y añade la opción por defecto
+            selectElement.innerHTML = '<option value="" disabled selected>Selecciona un producto del listado...</option>'; 
+            
+            const categoriasOrdenadas = Object.keys(productos).sort();
             
             categoriasOrdenadas.forEach(categoria => {
                 const optgroup = document.createElement('optgroup');
                 optgroup.label = categoria;
                 
-                // Ordenar los productos alfabéticamente dentro de la categoría
-                const productosOrdenados = PRODUCTOS_EXTENSOS[categoria].sort();
-
-                productosOrdenados.forEach(producto => {
+                // Los productos ya están ordenados por la función guardarProductos
+                productos[categoria].forEach(producto => {
                     const option = document.createElement('option');
                     option.value = producto;
                     option.textContent = producto;
@@ -440,7 +599,7 @@
         };
 
         // Función normalizarProducto: SOLO para autocorrección de errores comunes 
-        // en el input manual o para registros Viejos.
+        // en el input manual o para registros Viejos (esencial para el histórico).
         function normalizarProducto(producto) {
             if (!producto) return '';
             
@@ -449,59 +608,20 @@
             
             // --- MAPEO MANUAL REFORZADO (Asegura consistencia) ---
             
+            // Los nombres aquí DEBEN coincidir con los nombres en la base de datos
+            
             if (limpio.includes('azucar') || limpio.includes('asucar')) return 'Azúcar'; 
             if (limpio.includes('leche') || limpio.includes('lecche') || limpio.includes('lechhes')) return 'Leche Entera'; 
             if (limpio.includes('pan') || limpio.includes('panes')) return 'Pan Francés (Kilo)'; 
             if (limpio.includes('gaseosa') || limpio.includes('coca') || limpio.includes('pepsi')) return 'Gaseosa (2.25L)'; 
             if (limpio.includes('fideo') || limpio.includes('tallarin') || limpio.includes('pastas')) return 'Fideos (Pasta Seca)'; 
             if (limpio.includes('arroz') || limpio.includes('arros')) return 'Arroz Blanco'; 
-            if (limpio.includes('proveedor') || limpio.includes('probeor')) return 'Proveedor'; 
+            if (limpio.includes('proveedor') || limpio.includes('probeor') || limpio.includes('probeor1') || limpio.includes('proveedor1')) return 'Proveedor'; 
             if (limpio.includes('tarte')) return 'Tarta (Porción)'; 
 
             // Si no está mapeado, se limpia y se capitaliza solo la primera letra.
             let productoLimpio = producto.trim().toLowerCase();
             return productoLimpio.charAt(0).toUpperCase() + productoLimpio.slice(1);
-        }
-
-        // --- FUNCIONES DE ATAJOS RÁPIDOS ---
-
-        function cargarAtajos() {
-            const container = document.getElementById('atajos-container');
-            container.innerHTML = ''; 
-
-            ATAJOS_RAPIDOS.forEach(atajo => {
-                const button = document.createElement('button');
-                button.className = 'atajo-btn';
-                button.innerHTML = `${atajo.nombre} <br><strong>$${atajo.monto.toFixed(2)}</strong>`;
-                button.setAttribute('onclick', `usarAtajo('${atajo.nombre.replace(/'/g, "\\'")}', ${atajo.monto})`);
-                container.appendChild(button);
-            });
-        }
-
-        function usarAtajo(nombre, monto) {
-            // Rellena los campos
-            document.getElementById('tipo-movimiento').value = 'venta'; 
-            document.getElementById('monto').value = monto.toFixed(2);
-            
-            // Prioriza el select si el producto existe en el listado extenso
-            const selectElement = document.getElementById('producto-select');
-            let foundInSelect = false;
-            for (let i = 0; i < selectElement.options.length; i++) {
-                if (selectElement.options[i].value === nombre) {
-                    selectElement.value = nombre;
-                    document.getElementById('producto-manual').value = ''; // Limpia el manual
-                    foundInSelect = true;
-                    break;
-                }
-            }
-            
-            // Si no está en el select (ej: atajo personalizado no catalogado) lo pone en el input manual
-            if (!foundInSelect) {
-                selectElement.value = ''; // Limpia el select
-                document.getElementById('producto-manual').value = nombre;
-            }
-
-            document.querySelector('#input-section button:first-of-type').focus();
         }
 
         // --- GESTIÓN DE CAJA ---
@@ -517,6 +637,7 @@
         }
 
         function agregarMovimiento() {
+            // Verificar bloqueo por suscripción para la funcionalidad principal
             if (document.body.classList.contains('app-blocked')) {
                 alert("La aplicación está suspendida. Por favor, renueva tu suscripción para continuar.");
                 return;
@@ -540,8 +661,7 @@
                  return;
             }
             
-            // Si viene del SELECT (Select), el nombre es CORRECTO.
-            // Si viene del MANUAL (Input Text), aplicamos la normalización/autocorrección.
+            // La normalización solo se aplica al input manual (por si comete error ortográfico)
             const productoFinal = productoSelect ? productoBase : normalizarProducto(productoBase);
 
 
@@ -560,8 +680,8 @@
             guardarMovimientos(movimientos);
 
             document.getElementById('monto').value = '';
-            document.getElementById('producto-select').value = ''; // Limpia el select
-            document.getElementById('producto-manual').value = ''; // Limpia el input manual
+            document.getElementById('producto-select').value = ''; 
+            document.getElementById('producto-manual').value = ''; 
         }
 
         function renderizarResumen() { 
@@ -687,7 +807,7 @@
             guardarMovimientos(nuevosMovimientos);
         }
         
-        // --- FUNCIONES DE ACCESO Y SEGURIDAD ---
+        // --- FUNCIONES DE ACCESO Y SEGURIDAD (ADMIN) ---
 
         function generarClienteId() {
             let id = localStorage.getItem(CLIENT_ID_KEY);
@@ -816,11 +936,13 @@
 
         // Iniciar la aplicación al cargar la página
         document.addEventListener('DOMContentLoaded', () => {
+            // Se debe obtener la lista de productos antes de cargar el select y el editor
+            obtenerProductos(); 
             generarClienteId(); 
             verificarAccesoDev(); 
             verificarSuscripcion();
             cargarSelectProductos(); 
-            cargarAtajos(); 
+            cargarEditorProductos(); // Carga la interfaz de edición para el cliente
             renderizarResumen(); 
             
             setInterval(verificarSuscripcion, 60 * 1000); 
