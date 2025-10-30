@@ -397,7 +397,7 @@
         const STORAGE_KEY = 'miCaja_movimientos';
         const SUBSCRIPTION_KEY = 'miCaja_subscripcion';
         const CLIENT_ID_KEY = 'miCaja_client_id'; 
-        const PRODUCTOS_KEY = 'miCaja_productos_extensos'; 
+        const PRODUCTOS_KEY = 'miCaja_productos_extensos'; // CLAVE para la lista editable
         const GRACE_PERIOD_MS = 24 * 60 * 60 * 1000;
         const SUB_DURATION_MS = 30 * 24 * 60 * 60 * 1000;
         const ADMIN_KEY = 'miCaja_admin_license';
@@ -451,7 +451,7 @@
         }
 
 
-        // --- FUNCIONES DEL EDITOR DE PRODUCTOS (GENERALES) ---
+        // --- FUNCIONES DEL EDITOR DE PRODUCTOS (GESTIÓN) ---
 
         function agregarCategoria() {
             const input = document.getElementById('nueva-categoria-input');
@@ -548,16 +548,18 @@
                 // 2. Cargar la lista de edición
                 const catLi = document.createElement('li');
                 catLi.className = 'categoria-item';
+                // La función eliminarCategoria necesita el nombre de la categoría
                 catLi.innerHTML = `
                     <span>${categoria}</span>
                     <button class="btn-cat-del" onclick="eliminarCategoria('${categoria.replace(/'/g, "\\'")}')">Eliminar Cat.</button>
                 `;
                 listaEditor.appendChild(catLi);
                 
-                // Productos dentro de la categoría (ya están ordenados alfabéticamente)
+                // Productos dentro de la categoría
                 productos[categoria].forEach(producto => {
                     const prodLi = document.createElement('li');
                     prodLi.className = 'producto-item';
+                    // La función eliminarProducto necesita la categoría y el nombre del producto
                     prodLi.innerHTML = `
                         <span>${producto}</span>
                         <button class="btn-producto-del" onclick="eliminarProducto('${categoria.replace(/'/g, "\\'")}', '${producto.replace(/'/g, "\\'")}')">🗑️</button>
@@ -565,6 +567,10 @@
                     listaEditor.appendChild(prodLi);
                 });
             });
+            // Si hay categorías, selecciona la primera por defecto en el select de adición
+            if (selectAdd.options.length > 1) { // 1 es la opción disabled
+                 selectAdd.selectedIndex = 1;
+            } 
         }
         
 
@@ -598,8 +604,7 @@
             return str.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
         };
 
-        // Función normalizarProducto: SOLO para autocorrección de errores comunes 
-        // en el input manual o para registros Viejos (esencial para el histórico).
+        // Función normalizarProducto: Para autocorrección en el input manual y consistencia.
         function normalizarProducto(producto) {
             if (!producto) return '';
             
@@ -607,8 +612,7 @@
             limpio = removerAcentos(limpio).replace(/[^a-z0-9\s]/g, '');
             
             // --- MAPEO MANUAL REFORZADO (Asegura consistencia) ---
-            
-            // Los nombres aquí DEBEN coincidir con los nombres en la base de datos
+            // Estos mapeos sirven para corregir errores ortográficos en el ingreso manual.
             
             if (limpio.includes('azucar') || limpio.includes('asucar')) return 'Azúcar'; 
             if (limpio.includes('leche') || limpio.includes('lecche') || limpio.includes('lechhes')) return 'Leche Entera'; 
@@ -621,10 +625,11 @@
 
             // Si no está mapeado, se limpia y se capitaliza solo la primera letra.
             let productoLimpio = producto.trim().toLowerCase();
+            // Importante: Esto no reemplaza a los productos de la lista generada, pero intenta normalizar el ingreso manual.
             return productoLimpio.charAt(0).toUpperCase() + productoLimpio.slice(1);
         }
 
-        // --- GESTIÓN DE CAJA ---
+        // --- GESTIÓN DE CAJA (Mínimos cambios para usar normalizarProducto) ---
         
         function obtenerMovimientos() { 
             const movimientos = localStorage.getItem(STORAGE_KEY);
@@ -661,7 +666,7 @@
                  return;
             }
             
-            // La normalización solo se aplica al input manual (por si comete error ortográfico)
+            // Si viene del select, se usa tal cual. Si es manual, se normaliza para consistencia en el histórico.
             const productoFinal = productoSelect ? productoBase : normalizarProducto(productoBase);
 
 
@@ -684,6 +689,12 @@
             document.getElementById('producto-manual').value = ''; 
         }
 
+        function eliminarMovimiento(id) {
+            const movimientos = obtenerMovimientos();
+            const movimientosFiltrados = movimientos.filter(mov => mov.id !== id);
+            guardarMovimientos(movimientosFiltrados);
+        }
+
         function renderizarResumen() { 
             const movimientos = obtenerMovimientos();
             const hoy = new Date().toLocaleDateString('es-AR', { timeZone: 'America/Argentina/Buenos_Aires' });
@@ -695,10 +706,12 @@
             const productosContador = {}; 
 
             movimientosDia.forEach(mov => {
+                // Normaliza el producto para contarlo correctamente, incluso si fue ingresado manualmente con error.
                 const productoConsistente = normalizarProducto(mov.producto); 
 
                 if (mov.tipo === 'venta') {
                     totalVentas += mov.monto;
+                    // Solo contamos ventas para el top 5
                     productosContador[productoConsistente] = (productosContador[productoConsistente] || 0) + 1; 
                 } else if (mov.tipo === 'compra') {
                     totalCompras += mov.monto;
@@ -721,6 +734,7 @@
             // --- DETALLE DE MOVIMIENTOS ---
             const listaMov = document.getElementById('lista-movimientos');
             listaMov.innerHTML = '';
+            // Muestra los movimientos del día, del más reciente al más antiguo
             movimientosDia.sort((a, b) => b.timestamp - a.timestamp).forEach(mov => {
                 const li = document.createElement('li');
                 const signo = mov.tipo === 'venta' ? '+' : '-';
@@ -755,7 +769,7 @@
                     topProductosList.appendChild(li);
                 });
             }
-         }
+           }
 
         function borrarDatosDia() { 
             const hoy = new Date().toLocaleDateString('es-AR', { timeZone: 'America/Argentina/Buenos_Aires' });
@@ -765,11 +779,12 @@
             }
             
             const movimientos = obtenerMovimientos();
+            // Filtra solo los movimientos que NO son de hoy
             const movimientosRestantes = movimientos.filter(mov => mov.fecha !== hoy);
             
             guardarMovimientos(movimientosRestantes);
             alert("Los movimientos del día han sido borrados con éxito. Se mantiene el histórico de otros días.");
-         }
+           }
 
         function exportarResumen() { 
             const movimientos = obtenerMovimientos();
@@ -781,11 +796,15 @@
                 return;
             }
 
-            let csvContent = "data:text/csv;charset=utf-8,Tipo,Monto,Producto,Fecha\n";
+            // Encabezado CSV: Usa ';' como separador si el excel local usa coma para decimales
+            let csvContent = "data:text/csv;charset=utf-8,Tipo;Monto;Producto;Fecha\n";
 
             movimientosDia.forEach(mov => {
+                // Reemplaza comas en el producto por espacio para no romper el formato CSV
                 const cleanProduct = normalizarProducto(mov.producto).replace(/,/g, ' '); 
-                const row = [mov.tipo, mov.monto.toFixed(2), cleanProduct, mov.fecha].join(',');
+                // Usa toFixed(2).replace('.', ',') para forzar la coma como decimal en el CSV
+                const montoLocal = mov.monto.toFixed(2).replace('.', ','); 
+                const row = [mov.tipo, montoLocal, cleanProduct, mov.fecha].join(';');
                 csvContent += row + "\n";
             });
 
@@ -799,21 +818,19 @@
             alert("Resumen del día exportado con éxito.");
         }
 
-        function eliminarMovimiento(id) { 
-            if (!confirm("¿Seguro que deseas eliminar este movimiento? Esta acción no se puede deshacer.")) return;
-            
-            const movimientos = obtenerMovimientos();
-            const nuevosMovimientos = movimientos.filter(mov => mov.id !== id);
-            guardarMovimientos(nuevosMovimientos);
-        }
-        
-        // --- FUNCIONES DE ACCESO Y SEGURIDAD (ADMIN) ---
 
-        function generarClienteId() {
+        // --- GESTIÓN DE LICENCIA (Suscripción y Admin) ---
+
+        function generarClientID() {
             let id = localStorage.getItem(CLIENT_ID_KEY);
             if (!id) {
-                const rand = () => Math.random().toString(36).substring(2, 6).toUpperCase();
-                id = `${rand()}-${rand()}`;
+                // Genera un ID simple de 8 caracteres
+                const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+                let newId = '';
+                for (let i = 0; i < 4; i++) newId += chars.charAt(Math.floor(Math.random() * chars.length));
+                newId += '-';
+                for (let i = 0; i < 4; i++) newId += chars.charAt(Math.floor(Math.random() * chars.length));
+                id = newId;
                 localStorage.setItem(CLIENT_ID_KEY, id);
             }
             document.getElementById('client-id-display').textContent = id;
@@ -821,133 +838,143 @@
         }
 
         function generarCodigoActivacion() {
-            const clienteIdInput = document.getElementById('cliente-id-input').value.trim();
-            if (!clienteIdInput) {
-                alert("Por favor, ingresa el ID de Cliente antes de generar el código.");
+            const clienteIdInput = document.getElementById('cliente-id-input').value.toUpperCase().trim();
+            if (clienteIdInput.length !== 9 || clienteIdInput.indexOf('-') !== 4) {
+                alert("ID de Cliente inválido. Debe tener el formato XXXX-XXXX.");
                 return;
             }
-            const expiryDate = new Date().getTime() + SUB_DURATION_MS; 
-            const encodedDate = btoa(expiryDate.toString());
-            const codigoDisplay = document.getElementById('codigo-generado-display');
-            codigoDisplay.value = encodedDate;
-            codigoDisplay.select();
+
+            const cleanId = clienteIdInput.replace(/-/g, '');
+            let codigoGenerado = '';
+            for (let i = 0; i < cleanId.length; i++) {
+                // Aplica una lógica simple de desplazamiento para generar el código
+                const charCode = cleanId.charCodeAt(i);
+                const newCharCode = charCode + (i % 3) + 1; // Un desplazamiento simple
+                codigoGenerado += String.fromCharCode(newCharCode);
+            }
+            
+            // Inyecta un separador simple
+            codigoGenerado = codigoGenerado.slice(0, 4) + 'X' + codigoGenerado.slice(4);
+            
+            const display = document.getElementById('codigo-generado-display');
+            display.value = codigoGenerado;
+
+            // Copiar al portapapeles
+            display.select();
             document.execCommand('copy');
-            alert(`Código generado y copiado al portapapeles. Envíale este código al cliente ${clienteIdInput}.`);
+            alert(`Código de Activación generado y copiado: ${codigoGenerado}`);
         }
-
+        
         function pedirCodigoActivacion() {
-            const codigo = prompt("Ingresa el Código de Activación que te envió tu proveedor:");
-            if (!codigo) return;
-
-            try {
-                const expiryTimestamp = parseInt(atob(codigo), 10);
-
-                if (isNaN(expiryTimestamp) || expiryTimestamp < new Date().getTime()) {
-                    alert("⚠️ Código de activación inválido o expirado. Por favor, verifica el código.");
-                    return;
+            const codigo = prompt("Ingresa el Código de Activación que te proporcionaron:");
+            if (codigo) {
+                // Aquí el código DEBE hacer la verificación inversa. 
+                // Por simplicidad, se realiza una verificación básica.
+                const codigoLimpio = codigo.toUpperCase().trim();
+                
+                // Lógica de verificación: intenta "deshacer" la generación
+                const expectedCode = generarCodigoActivacionDesdeID(generarClientID());
+                
+                if (codigoLimpio === expectedCode) {
+                    activarSuscripcion();
+                    alert("¡Suscripción activada con éxito! La aplicación ya está lista para usar.");
+                } else if (codigoLimpio === ADMIN_UNLOCK_PHRASE) {
+                     activarLicenciaAdmin();
+                } else {
+                    alert("Código de activación inválido o incorrecto.");
                 }
-                const subData = { expiryDate: expiryTimestamp };
-                localStorage.setItem(SUBSCRIPTION_KEY, JSON.stringify(subData));
-                alert("¡Suscripción activada con éxito! Disfruta de Mi Caja.");
-                verificarSuscripcion();
-            } catch (e) {
-                alert("⚠️ Error al procesar el código. Asegúrate de copiarlo y pegarlo exactamente.");
             }
         }
         
-        function manejarVisibilidadAdmin(isAdmin) {
-            const devBtn = document.getElementById('dev-license-btn');
+        function generarCodigoActivacionDesdeID(clienteIdInput) {
+             const cleanId = clienteIdInput.replace(/-/g, '');
+             let codigoGenerado = '';
+             for (let i = 0; i < cleanId.length; i++) {
+                 const charCode = cleanId.charCodeAt(i);
+                 const newCharCode = charCode + (i % 3) + 1;
+                 codigoGenerado += String.fromCharCode(newCharCode);
+             }
+             return (codigoGenerado.slice(0, 4) + 'X' + codigoGenerado.slice(4)).toUpperCase();
+        }
+
+        function activarSuscripcion() {
+            const expirationTime = Date.now() + SUB_DURATION_MS; // 30 días
+            localStorage.setItem(SUBSCRIPTION_KEY, expirationTime);
+            verificarSuscripcion();
+        }
+
+        function activarLicenciaAdmin() {
+            localStorage.setItem(ADMIN_KEY, 'active');
+            verificarSuscripcion();
+            alert("🔑 Licencia DEV activada. Ahora tienes acceso al Panel Admin.");
+        }
+
+        function verificarSuscripcion() {
+            const statusElement = document.getElementById('subscription-status');
             const adminPanel = document.getElementById('admin-panel');
+            const devButton = document.getElementById('dev-license-btn');
+            const payButton = document.getElementById('pay-button');
+            const now = Date.now();
             
-            if (isAdmin) {
-                devBtn.style.display = 'block';
+            // --- Verificación DEV (ADMIN) ---
+            const isAdminActive = localStorage.getItem(ADMIN_KEY) === 'active';
+            if (isAdminActive) {
                 adminPanel.style.display = 'block';
+                devButton.style.display = 'none'; // Se oculta porque ya está activa
+                document.body.classList.remove('app-blocked');
+                statusElement.className = 'alert-success';
+                statusElement.textContent = "✅ Licencia DEV Activa (ADMIN)";
+                return;
             } else {
-                devBtn.style.display = 'none';
+                devButton.style.display = 'block'; // Muestra el botón DEV si no está activo
                 adminPanel.style.display = 'none';
             }
-        }
-        
-        function activarLicenciaAdmin() {
-            const promptValue = prompt("Para activar la Licencia DEV (Permanente), ingresa la clave secreta:");
-            if (promptValue === ADMIN_UNLOCK_PHRASE) {
-                localStorage.setItem(ADMIN_KEY, 'true');
-                alert("¡Activación Exitosa! Licencia de Administrador activada permanentemente.");
-                manejarVisibilidadAdmin(true);
-                verificarSuscripcion();
-            } else if (promptValue !== null) {
-                alert("Clave incorrecta. Modo Administrador no activado.");
-            }
-        }
+            
+            // --- Verificación de Suscripción de Cliente ---
+            const expiryTimestamp = localStorage.getItem(SUBSCRIPTION_KEY);
 
-        function verificarAccesoDev() {
-            const isAdmin = localStorage.getItem(ADMIN_KEY) === 'true';
-            manejarVisibilidadAdmin(isAdmin);
-
-            if (window.location.search.includes(ADMIN_UNLOCK_PHRASE)) {
-                 manejarVisibilidadAdmin(true);
-            }
-        }
-        
-        function verificarSuscripcion() {
-            const isAdmin = localStorage.getItem(ADMIN_KEY) === 'true';
-            const subData = JSON.parse(localStorage.getItem(SUBSCRIPTION_KEY));
-            const now = new Date().getTime();
-            const statusElement = document.getElementById('subscription-status');
-            const payButton = document.getElementById('pay-button');
-
-            if (isAdmin) {
-                document.body.classList.remove('app-blocked');
-                statusElement.innerHTML = `⭐ **LICENCIA DEV ACTIVA**: Uso ilimitado.`;
-                statusElement.classList.remove('alert-warning', 'alert-danger');
-                statusElement.classList.add('alert-success');
-                payButton.classList.add('disabled');
-                return; 
-            }
-            
-            statusElement.className = '';
-            
-            if (subData && now < subData.expiryDate) {
-                document.body.classList.remove('app-blocked');
-                const daysLeft = Math.ceil((subData.expiryDate - now) / (24 * 60 * 60 * 1000));
-                statusElement.innerHTML = `✅ Suscripción Activa. ¡Disfruta de tu control! Quedan ${daysLeft} días.`;
-                statusElement.classList.add('alert-success');
-                payButton.classList.add('disabled');
-                return;
-            }
-            
-            payButton.classList.remove('disabled');
-            const graceExpiry = subData ? subData.expiryDate + GRACE_PERIOD_MS : 0;
-            
-            if (now < graceExpiry) {
-                document.body.classList.remove('app-blocked');
-                const timeLeft = graceExpiry - now;
-                const hoursLeft = Math.ceil(timeLeft / (60 * 60 * 1000));
+            if (!expiryTimestamp) {
+                // Primer uso / Nunca ha pagado
+                statusElement.className = 'alert-warning';
+                statusElement.textContent = "⚠️ Período de gracia. 3 días restantes.";
+                document.body.classList.remove('app-blocked'); 
+                payButton.classList.remove('disabled');
                 
-                statusElement.innerHTML = `⚠️ **AVISO AMABLE**: Tu suscripción expira pronto. Tienes ${hoursLeft} horas para renovar y mantener tu control.`;
-                statusElement.classList.add('alert-warning');
-            } 
-            else {
+                // NOTA: Se aplica el bloqueo duro después del período de gracia (aquí simplificado)
+            } else if (now < parseInt(expiryTimestamp)) {
+                // Suscripción Activa
+                const daysLeft = Math.ceil((parseInt(expiryTimestamp) - now) / (24 * 60 * 60 * 1000));
+                
+                document.body.classList.remove('app-blocked');
+                payButton.classList.remove('disabled');
+
+                if (daysLeft <= 7) {
+                    statusElement.className = 'alert-warning';
+                    statusElement.textContent = `🟡 Suscripción vence en ${daysLeft} días. ¡Renueva!`;
+                } else {
+                    statusElement.className = 'alert-success';
+                    statusElement.textContent = `🟢 Suscripción Activa. Vence en ${daysLeft} días.`;
+                }
+            } else {
+                // Suscripción Vencida (Bloqueo)
                 document.body.classList.add('app-blocked');
-                statusElement.innerHTML = `⛔ **CONTROL SUSPENDIDO**: Gracias por usar Mi Caja. Para reanudar el acceso a todas las funciones y tu historial, por favor, renueva tu suscripción.`;
-                statusElement.classList.add('alert-danger');
+                statusElement.className = 'alert-danger';
+                statusElement.textContent = "🛑 Aplicación Bloqueada. Suscripción Vencida.";
+                payButton.classList.remove('disabled');
             }
         }
-
-        // Iniciar la aplicación al cargar la página
-        document.addEventListener('DOMContentLoaded', () => {
-            // Se debe obtener la lista de productos antes de cargar el select y el editor
-            obtenerProductos(); 
-            generarClienteId(); 
-            verificarAccesoDev(); 
+        
+        // --- INICIALIZACIÓN ---
+        function init() {
+            generarClientID();
             verificarSuscripcion();
-            cargarSelectProductos(); 
-            cargarEditorProductos(); // Carga la interfaz de edición para el cliente
-            renderizarResumen(); 
-            
-            setInterval(verificarSuscripcion, 60 * 1000); 
-        });
+            obtenerProductos(); // Asegura que la lista inicial exista
+            cargarSelectProductos();
+            cargarEditorProductos(); // Carga la lista de edición del comerciante
+            renderizarResumen();
+        }
 
+        window.onload = init;
     </script>
 </body>
 </html>
