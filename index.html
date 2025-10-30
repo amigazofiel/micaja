@@ -333,25 +333,25 @@
             limpio = removerAcentos(limpio).replace(/[^a-z0-9\s]/g, '');
 
             // --- MAPEO MANUAL AMPLIADO ---
+            // CORRECCIÓN: Usamos includes para capturar errores de tipeo
             if (limpio.includes('azucar') || limpio.includes('asucar')) return 'Azúcar';
             if (limpio.includes('pan') || limpio.includes('panes')) return 'Pan';
             if (limpio.includes('gaseosa') || limpio.includes('coca') || limpio.includes('pepsi')) return 'Gaseosa';
             if (limpio.includes('leche') || limpio.includes('lecche')) return 'Leche';
             if (limpio.includes('fideo') || limpio.includes('tallarin') || limpio.includes('pastas')) return 'Fideos';
+            if (limpio.includes('arroz') || limpio.includes('arros')) return 'Arroz'; // Corrección para "Arros"
+            if (limpio.includes('proveedor') || limpio.includes('probeor')) return 'Proveedor'; // Corrección para "Probeor"
+
 
             // Si no está mapeado, capitaliza la primera letra para que se vea ordenado.
             return producto.charAt(0).toUpperCase() + producto.slice(1).toLowerCase();
         }
 
-        // --- GESTIÓN DE CLIENTES Y ACTIVACIÓN REMOTA ---
+        // --- GESTIÓN DE CLIENTES Y ACTIVACIÓN REMOTA (Sin cambios) ---
 
-        /**
-         * Genera o recupera un ID único para cada cliente.
-         */
         function generarClienteId() {
             let id = localStorage.getItem(CLIENT_ID_KEY);
             if (!id) {
-                // Genera un ID simple: 4 caracteres alfanuméricos + guión + 4 caracteres
                 const rand = () => Math.random().toString(36).substring(2, 6).toUpperCase();
                 id = `${rand()}-${rand()}`;
                 localStorage.setItem(CLIENT_ID_KEY, id);
@@ -360,59 +360,42 @@
             return id;
         }
 
-        /**
-         * (ADMIN) Genera el código de activación que se le enviará al cliente.
-         */
         function generarCodigoActivacion() {
             const clienteIdInput = document.getElementById('cliente-id-input').value.trim();
             if (!clienteIdInput) {
                 alert("Por favor, ingresa el ID de Cliente antes de generar el código.");
                 return;
             }
-            
-            // La fecha de expiración es hoy + 30 días
             const expiryDate = new Date().getTime() + SUB_DURATION_MS; 
-            
-            // Codificamos la fecha en Base64 para que sea un código "secreto"
             const encodedDate = btoa(expiryDate.toString());
-            
             const codigoDisplay = document.getElementById('codigo-generado-display');
             codigoDisplay.value = encodedDate;
-            
-            // Copiar al portapapeles
             codigoDisplay.select();
             document.execCommand('copy');
             alert(`Código generado y copiado al portapapeles. Envíale este código al cliente ${clienteIdInput}.`);
         }
 
-        /**
-         * (CLIENTE) Pide el código de activación al cliente y lo aplica.
-         */
         function pedirCodigoActivacion() {
             const codigo = prompt("Ingresa el Código de Activación que te envió tu proveedor:");
             if (!codigo) return;
 
             try {
-                // Decodificamos el código (que es la fecha de expiración)
                 const expiryTimestamp = parseInt(atob(codigo), 10);
 
                 if (isNaN(expiryTimestamp) || expiryTimestamp < new Date().getTime()) {
                     alert("⚠️ Código de activación inválido o expirado. Por favor, verifica el código.");
                     return;
                 }
-                
-                // Si la fecha es válida y futura, se activa la suscripción
                 const subData = { expiryDate: expiryTimestamp };
                 localStorage.setItem(SUBSCRIPTION_KEY, JSON.stringify(subData));
                 alert("¡Suscripción activada con éxito! Disfruta de Mi Caja.");
                 verificarSuscripcion();
-
             } catch (e) {
                 alert("⚠️ Error al procesar el código. Asegúrate de copiarlo y pegarlo exactamente.");
             }
         }
         
-        // --- FUNCIONES DE ACCESO Y SEGURIDAD (Se mantienen) ---
+        // --- FUNCIONES DE ACCESO Y SEGURIDAD (Sin cambios) ---
 
         function manejarVisibilidadAdmin(isAdmin) {
             const devBtn = document.getElementById('dev-license-btn');
@@ -447,8 +430,6 @@
                  manejarVisibilidadAdmin(true);
             }
         }
-        
-        // --- LÓGICA DE SUBSCRIPCIÓN Y BOTÓN DE PAGO (Se mantiene la lógica) ---
         
         function verificarSuscripcion() {
             const isAdmin = localStorage.getItem(ADMIN_KEY) === 'true';
@@ -517,6 +498,7 @@
             const monto = parseFloat(document.getElementById('monto').value);
             const productoInput = document.getElementById('producto').value;
             
+            // **IMPORTANTE**: Normalizamos ANTES de validar y guardar.
             const productoNormalizado = normalizarProducto(productoInput);
 
             // Validación de Monto
@@ -525,7 +507,7 @@
                  return;
             }
             
-            // Validación de Producto
+            // Si la normalización devuelve un valor (no está vacío)
             if (!productoNormalizado) {
                  alert("Por favor, ingresa una descripción del producto.");
                  return;
@@ -538,6 +520,7 @@
                 fecha: hoy,
                 tipo: tipo,
                 monto: monto,
+                // **GUARDAMOS EL NOMBRE YA CORREGIDO/NORMALIZADO**
                 producto: productoNormalizado, 
                 timestamp: Date.now()
             };
@@ -561,10 +544,13 @@
             const productosContador = {}; 
 
             movimientosDia.forEach(mov => {
+                // **IMPORTANTE**: Aplicamos la normalización al producto GUARDADO
+                // para que el resumen y el contador funcionen con nombres consistentes.
+                const productoConsistente = normalizarProducto(mov.producto); 
+
                 if (mov.tipo === 'venta') {
                     totalVentas += mov.monto;
-                    // LÍNEA CORREGIDA
-                    productosContador[mov.producto] = (productosContador[mov.producto] || 0) + 1; 
+                    productosContador[productoConsistente] = (productosContador[productoConsistente] || 0) + 1; 
                 } else if (mov.tipo === 'compra') {
                     totalCompras += mov.monto;
                 } else if (mov.tipo === 'gasto') {
@@ -591,10 +577,15 @@
                 const signo = mov.tipo === 'venta' ? '+' : '-';
                 const claseMonto = mov.tipo === 'venta' ? 'monto-venta' : 'monto-gasto';
                 
-                // Aplicamos la normalización al producto antes de mostrarlo
+                // Usamos la normalización al producto para mostrar el nombre corregido
                 const productoParaMostrar = normalizarProducto(mov.producto); 
+                
+                // Asignamos la etiqueta correcta para compras/gastos
+                const tipoEtiqueta = (mov.tipo === 'compra') ? 'compra' : (mov.tipo === 'gasto' ? 'gasto' : 'venta');
+
+
                 li.innerHTML = `
-                    <span>${productoParaMostrar} (${mov.tipo})</span>
+                    <span>${productoParaMostrar} (${tipoEtiqueta})</span>
                     <span class="${claseMonto}">${signo} $${mov.monto.toFixed(2)}</span>
                     <button class="delete-btn" onclick="eliminarMovimiento(${mov.id})">🗑️</button>
                 `;
@@ -605,6 +596,7 @@
             const topProductosList = document.getElementById('lista-top-productos');
             topProductosList.innerHTML = '';
             
+            // El conteo ya usa los nombres consistentes (corregidos)
             const sortedProductos = Object.entries(productosContador)
                 .sort(([, a], [, b]) => b - a) 
                 .slice(0, 5);
@@ -614,9 +606,8 @@
             } else {
                 sortedProductos.forEach(([producto, cantidad]) => {
                     const li = document.createElement('li');
-                    // Aplicamos la normalización al producto antes de mostrarlo
-                    const productoNormalizadoParaTop = normalizarProducto(producto);
-                    li.innerHTML = `<strong>${productoNormalizadoParaTop}</strong>: ${cantidad} ventas`;
+                    // El producto aquí ya viene limpio de la normalización
+                    li.innerHTML = `<strong>${producto}</strong>: ${cantidad} ventas`;
                     topProductosList.appendChild(li);
                 });
             }
