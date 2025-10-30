@@ -282,13 +282,21 @@
 
         <section id="input-section">
             <h2>Registrar Movimiento</h2>
+            
             <select id="tipo-movimiento">
                 <option value="venta">Venta (+)</option>
                 <option value="gasto">Gasto (-)</option>
                 <option value="compra">Compra (-)</option>
             </select>
+            
             <input type="number" id="monto" placeholder="Monto (ej: 150.50)" step="0.01" required>
-            <input type="text" id="producto" placeholder="Descripción o Nombre del Producto" required>
+            
+            <select id="producto-select">
+                <option value="" disabled selected>Selecciona un producto del listado...</option>
+                </select>
+            
+            <input type="text" id="producto-manual" placeholder="O ingresa el nombre aquí si no está en la lista..." style="margin-top: -5px;">
+
             <button onclick="agregarMovimiento()">Agregar</button>
             <button id="dev-license-btn" onclick="activarLicenciaAdmin()" title="Activa la licencia permanentemente (Sólo para ti)">🔑 Activar Licencia DEV</button>
         </section>
@@ -362,38 +370,93 @@
         const ADMIN_KEY = 'miCaja_admin_license';
         const ADMIN_UNLOCK_PHRASE = 'desarrollador-maestro'; 
         
-        // --- LISTA DE ATAJOS RÁPIDOS (PRODUCTOS MÁS VENDIDOS) ---
+        // --- BASE DE DATOS EXTENSA DE PRODUCTOS (Categorizado y se ordena alfabéticamente al cargar) ---
+        const PRODUCTOS_EXTENSOS = {
+            "Abarrotes y Despensa": [
+                "Aceite Comestible", "Arroz Blanco", "Atún en Lata", "Azúcar", "Café Molido", 
+                "Caldos y Sazonadores", "Fideos (Pasta Seca)", "Harina de Trigo", "Lentejas", 
+                "Mermelada", "Pan Rallado", "Sal Común", "Sopa Instantánea", "Yerba Mate"
+            ],
+            "Lácteos y Refrigerados": [
+                "Crema de Leche", "Huevo (Docena)", "Leche Entera", "Mantequilla", "Margarina", 
+                "Queso Cremoso", "Queso Rallado", "Yogur Bebible", "Yogur en Pote"
+            ],
+            "Bebidas y Jugos": [
+                "Agua Mineral (Botella)", "Bebida Isotónica", "Cerveza (Lata)", "Gaseosa (1.5L)", 
+                "Gaseosa (2.25L)", "Jugo en Polvo", "Jugo Listo (Cartón)", "Vino (Tinto/Blanco)"
+            ],
+            "Limpieza y Hogar": [
+                "Detergente Lavaplatos", "Detergente Ropa", "Lavandina/Cloro", "Limpiador de Pisos", 
+                "Papel Higiénico", "Servilletas", "Trapo de Piso", "Bolsa de Residuos"
+            ],
+            "Snacks y Golosinas": [
+                "Almendras (Bolsa)", "Chicle", "Chocolate", "Galletas Dulces", "Maní Tostado", 
+                "Papas Fritas (Bolsa)", "Caramelos", "Barra de Cereal"
+            ],
+            "Panadería y Repostería": [
+                "Bizcochos", "Facturas (Unidad)", "Medialunas", "Pan de Molde", "Pan Francés (Kilo)",
+                "Tarta (Porción)"
+            ]
+        };
+        
+        // --- LISTA DE ATAJOS RÁPIDOS (Para productos de precio fijo) ---
         const ATAJOS_RAPIDOS = [
-            { nombre: 'Gaseosa Grande', monto: 1500 },
-            { nombre: 'Azúcar x 1Kg', monto: 500 },
-            { nombre: 'Pan (Kilo)', monto: 800 },
-            { nombre: 'Leche (Litro)', monto: 450 },
-            { nombre: 'Fideos Común', monto: 350 },
-            { nombre: 'Arroz x 1Kg', monto: 650 },
+            { nombre: 'Gaseosa (2.25L)', monto: 1500 },
+            { nombre: 'Azúcar', monto: 500 },
+            { nombre: 'Pan Francés (Kilo)', monto: 800 },
+            { nombre: 'Leche Entera', monto: 450 },
+            { nombre: 'Fideos (Pasta Seca)', monto: 350 },
+            { nombre: 'Arroz Blanco', monto: 650 },
         ];
 
 
-        // --- FUNCIONES DE NORMALIZACIÓN (AUTOCORRECCIÓN REFORZADA) ---
+        // --- FUNCIONES DE CARGA Y NORMALIZACIÓN ---
+
+        function cargarSelectProductos() {
+            const selectElement = document.getElementById('producto-select');
+            
+            // Recorrer las categorías
+            const categoriasOrdenadas = Object.keys(PRODUCTOS_EXTENSOS).sort();
+            
+            categoriasOrdenadas.forEach(categoria => {
+                const optgroup = document.createElement('optgroup');
+                optgroup.label = categoria;
+                
+                // Ordenar los productos alfabéticamente dentro de la categoría
+                const productosOrdenados = PRODUCTOS_EXTENSOS[categoria].sort();
+
+                productosOrdenados.forEach(producto => {
+                    const option = document.createElement('option');
+                    option.value = producto;
+                    option.textContent = producto;
+                    optgroup.appendChild(option);
+                });
+                selectElement.appendChild(optgroup);
+            });
+        }
         
         const removerAcentos = (str) => {
             return str.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
         };
 
+        // Función normalizarProducto: SOLO para autocorrección de errores comunes 
+        // en el input manual o para registros Viejos.
         function normalizarProducto(producto) {
             if (!producto) return '';
             
             let limpio = producto.toLowerCase().trim();
             limpio = removerAcentos(limpio).replace(/[^a-z0-9\s]/g, '');
             
-            // --- MAPEO MANUAL REFORZADO (Asegura consistencia con Atajos) ---
+            // --- MAPEO MANUAL REFORZADO (Asegura consistencia) ---
             
-            if (limpio.includes('azucar') || limpio.includes('asucar')) return 'Azúcar x 1Kg'; 
-            if (limpio.includes('leche') || limpio.includes('lecche') || limpio.includes('lechhes')) return 'Leche (Litro)'; 
-            if (limpio.includes('pan') || limpio.includes('panes')) return 'Pan (Kilo)'; 
-            if (limpio.includes('gaseosa') || limpio.includes('coca') || limpio.includes('pepsi')) return 'Gaseosa Grande'; 
-            if (limpio.includes('fideo') || limpio.includes('tallarin') || limpio.includes('pastas')) return 'Fideos Común'; 
-            if (limpio.includes('arroz') || limpio.includes('arros')) return 'Arroz x 1Kg'; 
+            if (limpio.includes('azucar') || limpio.includes('asucar')) return 'Azúcar'; 
+            if (limpio.includes('leche') || limpio.includes('lecche') || limpio.includes('lechhes')) return 'Leche Entera'; 
+            if (limpio.includes('pan') || limpio.includes('panes')) return 'Pan Francés (Kilo)'; 
+            if (limpio.includes('gaseosa') || limpio.includes('coca') || limpio.includes('pepsi')) return 'Gaseosa (2.25L)'; 
+            if (limpio.includes('fideo') || limpio.includes('tallarin') || limpio.includes('pastas')) return 'Fideos (Pasta Seca)'; 
+            if (limpio.includes('arroz') || limpio.includes('arros')) return 'Arroz Blanco'; 
             if (limpio.includes('proveedor') || limpio.includes('probeor')) return 'Proveedor'; 
+            if (limpio.includes('tarte')) return 'Tarta (Porción)'; 
 
             // Si no está mapeado, se limpia y se capitaliza solo la primera letra.
             let productoLimpio = producto.trim().toLowerCase();
@@ -416,143 +479,32 @@
         }
 
         function usarAtajo(nombre, monto) {
+            // Rellena los campos
             document.getElementById('tipo-movimiento').value = 'venta'; 
             document.getElementById('monto').value = monto.toFixed(2);
-            document.getElementById('producto').value = nombre; 
             
+            // Prioriza el select si el producto existe en el listado extenso
+            const selectElement = document.getElementById('producto-select');
+            let foundInSelect = false;
+            for (let i = 0; i < selectElement.options.length; i++) {
+                if (selectElement.options[i].value === nombre) {
+                    selectElement.value = nombre;
+                    document.getElementById('producto-manual').value = ''; // Limpia el manual
+                    foundInSelect = true;
+                    break;
+                }
+            }
+            
+            // Si no está en el select (ej: atajo personalizado no catalogado) lo pone en el input manual
+            if (!foundInSelect) {
+                selectElement.value = ''; // Limpia el select
+                document.getElementById('producto-manual').value = nombre;
+            }
+
             document.querySelector('#input-section button:first-of-type').focus();
         }
 
-        // --- GESTIÓN DE CLIENTES Y ACTIVACIÓN REMOTA (Sin cambios) ---
-
-        function generarClienteId() {
-            let id = localStorage.getItem(CLIENT_ID_KEY);
-            if (!id) {
-                const rand = () => Math.random().toString(36).substring(2, 6).toUpperCase();
-                id = `${rand()}-${rand()}`;
-                localStorage.setItem(CLIENT_ID_KEY, id);
-            }
-            document.getElementById('client-id-display').textContent = id;
-            return id;
-        }
-
-        function generarCodigoActivacion() {
-            const clienteIdInput = document.getElementById('cliente-id-input').value.trim();
-            if (!clienteIdInput) {
-                alert("Por favor, ingresa el ID de Cliente antes de generar el código.");
-                return;
-            }
-            const expiryDate = new Date().getTime() + SUB_DURATION_MS; 
-            const encodedDate = btoa(expiryDate.toString());
-            const codigoDisplay = document.getElementById('codigo-generado-display');
-            codigoDisplay.value = encodedDate;
-            codigoDisplay.select();
-            document.execCommand('copy');
-            alert(`Código generado y copiado al portapapeles. Envíale este código al cliente ${clienteIdInput}.`);
-        }
-
-        function pedirCodigoActivacion() {
-            const codigo = prompt("Ingresa el Código de Activación que te envió tu proveedor:");
-            if (!codigo) return;
-
-            try {
-                const expiryTimestamp = parseInt(atob(codigo), 10);
-
-                if (isNaN(expiryTimestamp) || expiryTimestamp < new Date().getTime()) {
-                    alert("⚠️ Código de activación inválido o expirado. Por favor, verifica el código.");
-                    return;
-                }
-                const subData = { expiryDate: expiryTimestamp };
-                localStorage.setItem(SUBSCRIPTION_KEY, JSON.stringify(subData));
-                alert("¡Suscripción activada con éxito! Disfruta de Mi Caja.");
-                verificarSuscripcion();
-            } catch (e) {
-                alert("⚠️ Error al procesar el código. Asegúrate de copiarlo y pegarlo exactamente.");
-            }
-        }
-        
-        // --- FUNCIONES DE ACCESO Y SEGURIDAD (Sin cambios) ---
-
-        function manejarVisibilidadAdmin(isAdmin) {
-            const devBtn = document.getElementById('dev-license-btn');
-            const adminPanel = document.getElementById('admin-panel');
-            
-            if (isAdmin) {
-                devBtn.style.display = 'block';
-                adminPanel.style.display = 'block';
-            } else {
-                devBtn.style.display = 'none';
-                adminPanel.style.display = 'none';
-            }
-        }
-        
-        function activarLicenciaAdmin() {
-            const promptValue = prompt("Para activar la Licencia DEV (Permanente), ingresa la clave secreta:");
-            if (promptValue === ADMIN_UNLOCK_PHRASE) {
-                localStorage.setItem(ADMIN_KEY, 'true');
-                alert("¡Activación Exitosa! Licencia de Administrador activada permanentemente.");
-                manejarVisibilidadAdmin(true);
-                verificarSuscripcion();
-            } else if (promptValue !== null) {
-                alert("Clave incorrecta. Modo Administrador no activado.");
-            }
-        }
-
-        function verificarAccesoDev() {
-            const isAdmin = localStorage.getItem(ADMIN_KEY) === 'true';
-            manejarVisibilidadAdmin(isAdmin);
-
-            if (window.location.search.includes(ADMIN_UNLOCK_PHRASE)) {
-                 manejarVisibilidadAdmin(true);
-            }
-        }
-        
-        function verificarSuscripcion() {
-            const isAdmin = localStorage.getItem(ADMIN_KEY) === 'true';
-            const subData = JSON.parse(localStorage.getItem(SUBSCRIPTION_KEY));
-            const now = new Date().getTime();
-            const statusElement = document.getElementById('subscription-status');
-            const payButton = document.getElementById('pay-button');
-
-            if (isAdmin) {
-                document.body.classList.remove('app-blocked');
-                statusElement.innerHTML = `⭐ **LICENCIA DEV ACTIVA**: Uso ilimitado.`;
-                statusElement.classList.remove('alert-warning', 'alert-danger');
-                statusElement.classList.add('alert-success');
-                payButton.classList.add('disabled');
-                return; 
-            }
-            
-            statusElement.className = '';
-            
-            if (subData && now < subData.expiryDate) {
-                document.body.classList.remove('app-blocked');
-                const daysLeft = Math.ceil((subData.expiryDate - now) / (24 * 60 * 60 * 1000));
-                statusElement.innerHTML = `✅ Suscripción Activa. ¡Disfruta de tu control! Quedan ${daysLeft} días.`;
-                statusElement.classList.add('alert-success');
-                payButton.classList.add('disabled');
-                return;
-            }
-            
-            payButton.classList.remove('disabled');
-            const graceExpiry = subData ? subData.expiryDate + GRACE_PERIOD_MS : 0;
-            
-            if (now < graceExpiry) {
-                document.body.classList.remove('app-blocked');
-                const timeLeft = graceExpiry - now;
-                const hoursLeft = Math.ceil(timeLeft / (60 * 60 * 1000));
-                
-                statusElement.innerHTML = `⚠️ **AVISO AMABLE**: Tu suscripción expira pronto. Tienes ${hoursLeft} horas para renovar y mantener tu control.`;
-                statusElement.classList.add('alert-warning');
-            } 
-            else {
-                document.body.classList.add('app-blocked');
-                statusElement.innerHTML = `⛔ **CONTROL SUSPENDIDO**: Gracias por usar Mi Caja. Para reanudar el acceso a todas las funciones y tu historial, por favor, renueva tu suscripción.`;
-                statusElement.classList.add('alert-danger');
-            }
-        }
-        
-        // --- FUNCIONES DE CAJA Y ALMACENAMIENTO ---
+        // --- GESTIÓN DE CAJA ---
         
         function obtenerMovimientos() { 
             const movimientos = localStorage.getItem(STORAGE_KEY);
@@ -572,19 +524,26 @@
             
             const tipo = document.getElementById('tipo-movimiento').value;
             const monto = parseFloat(document.getElementById('monto').value);
-            const productoInput = document.getElementById('producto').value;
             
-            const productoNormalizado = normalizarProducto(productoInput);
+            const productoSelect = document.getElementById('producto-select').value;
+            const productoManual = document.getElementById('producto-manual').value;
+            
+            let productoBase = productoSelect || productoManual;
 
             if (isNaN(monto) || monto <= 0) {
                  alert("Por favor, ingresa un monto válido y mayor a cero.");
                  return;
             }
             
-            if (!productoNormalizado) {
-                 alert("Por favor, ingresa una descripción del producto.");
+            if (!productoBase) {
+                 alert("Por favor, selecciona un producto del listado o ingresa una descripción manual.");
                  return;
             }
+            
+            // Si viene del SELECT (Select), el nombre es CORRECTO.
+            // Si viene del MANUAL (Input Text), aplicamos la normalización/autocorrección.
+            const productoFinal = productoSelect ? productoBase : normalizarProducto(productoBase);
+
 
             const hoy = new Date().toLocaleDateString('es-AR', { timeZone: 'America/Argentina/Buenos_Aires' });
             const nuevoMovimiento = {
@@ -592,7 +551,7 @@
                 fecha: hoy,
                 tipo: tipo,
                 monto: monto,
-                producto: productoNormalizado, 
+                producto: productoFinal, 
                 timestamp: Date.now()
             };
 
@@ -601,7 +560,8 @@
             guardarMovimientos(movimientos);
 
             document.getElementById('monto').value = '';
-            document.getElementById('producto').value = '';
+            document.getElementById('producto-select').value = ''; // Limpia el select
+            document.getElementById('producto-manual').value = ''; // Limpia el input manual
         }
 
         function renderizarResumen() { 
@@ -726,12 +686,140 @@
             const nuevosMovimientos = movimientos.filter(mov => mov.id !== id);
             guardarMovimientos(nuevosMovimientos);
         }
+        
+        // --- FUNCIONES DE ACCESO Y SEGURIDAD ---
+
+        function generarClienteId() {
+            let id = localStorage.getItem(CLIENT_ID_KEY);
+            if (!id) {
+                const rand = () => Math.random().toString(36).substring(2, 6).toUpperCase();
+                id = `${rand()}-${rand()}`;
+                localStorage.setItem(CLIENT_ID_KEY, id);
+            }
+            document.getElementById('client-id-display').textContent = id;
+            return id;
+        }
+
+        function generarCodigoActivacion() {
+            const clienteIdInput = document.getElementById('cliente-id-input').value.trim();
+            if (!clienteIdInput) {
+                alert("Por favor, ingresa el ID de Cliente antes de generar el código.");
+                return;
+            }
+            const expiryDate = new Date().getTime() + SUB_DURATION_MS; 
+            const encodedDate = btoa(expiryDate.toString());
+            const codigoDisplay = document.getElementById('codigo-generado-display');
+            codigoDisplay.value = encodedDate;
+            codigoDisplay.select();
+            document.execCommand('copy');
+            alert(`Código generado y copiado al portapapeles. Envíale este código al cliente ${clienteIdInput}.`);
+        }
+
+        function pedirCodigoActivacion() {
+            const codigo = prompt("Ingresa el Código de Activación que te envió tu proveedor:");
+            if (!codigo) return;
+
+            try {
+                const expiryTimestamp = parseInt(atob(codigo), 10);
+
+                if (isNaN(expiryTimestamp) || expiryTimestamp < new Date().getTime()) {
+                    alert("⚠️ Código de activación inválido o expirado. Por favor, verifica el código.");
+                    return;
+                }
+                const subData = { expiryDate: expiryTimestamp };
+                localStorage.setItem(SUBSCRIPTION_KEY, JSON.stringify(subData));
+                alert("¡Suscripción activada con éxito! Disfruta de Mi Caja.");
+                verificarSuscripcion();
+            } catch (e) {
+                alert("⚠️ Error al procesar el código. Asegúrate de copiarlo y pegarlo exactamente.");
+            }
+        }
+        
+        function manejarVisibilidadAdmin(isAdmin) {
+            const devBtn = document.getElementById('dev-license-btn');
+            const adminPanel = document.getElementById('admin-panel');
+            
+            if (isAdmin) {
+                devBtn.style.display = 'block';
+                adminPanel.style.display = 'block';
+            } else {
+                devBtn.style.display = 'none';
+                adminPanel.style.display = 'none';
+            }
+        }
+        
+        function activarLicenciaAdmin() {
+            const promptValue = prompt("Para activar la Licencia DEV (Permanente), ingresa la clave secreta:");
+            if (promptValue === ADMIN_UNLOCK_PHRASE) {
+                localStorage.setItem(ADMIN_KEY, 'true');
+                alert("¡Activación Exitosa! Licencia de Administrador activada permanentemente.");
+                manejarVisibilidadAdmin(true);
+                verificarSuscripcion();
+            } else if (promptValue !== null) {
+                alert("Clave incorrecta. Modo Administrador no activado.");
+            }
+        }
+
+        function verificarAccesoDev() {
+            const isAdmin = localStorage.getItem(ADMIN_KEY) === 'true';
+            manejarVisibilidadAdmin(isAdmin);
+
+            if (window.location.search.includes(ADMIN_UNLOCK_PHRASE)) {
+                 manejarVisibilidadAdmin(true);
+            }
+        }
+        
+        function verificarSuscripcion() {
+            const isAdmin = localStorage.getItem(ADMIN_KEY) === 'true';
+            const subData = JSON.parse(localStorage.getItem(SUBSCRIPTION_KEY));
+            const now = new Date().getTime();
+            const statusElement = document.getElementById('subscription-status');
+            const payButton = document.getElementById('pay-button');
+
+            if (isAdmin) {
+                document.body.classList.remove('app-blocked');
+                statusElement.innerHTML = `⭐ **LICENCIA DEV ACTIVA**: Uso ilimitado.`;
+                statusElement.classList.remove('alert-warning', 'alert-danger');
+                statusElement.classList.add('alert-success');
+                payButton.classList.add('disabled');
+                return; 
+            }
+            
+            statusElement.className = '';
+            
+            if (subData && now < subData.expiryDate) {
+                document.body.classList.remove('app-blocked');
+                const daysLeft = Math.ceil((subData.expiryDate - now) / (24 * 60 * 60 * 1000));
+                statusElement.innerHTML = `✅ Suscripción Activa. ¡Disfruta de tu control! Quedan ${daysLeft} días.`;
+                statusElement.classList.add('alert-success');
+                payButton.classList.add('disabled');
+                return;
+            }
+            
+            payButton.classList.remove('disabled');
+            const graceExpiry = subData ? subData.expiryDate + GRACE_PERIOD_MS : 0;
+            
+            if (now < graceExpiry) {
+                document.body.classList.remove('app-blocked');
+                const timeLeft = graceExpiry - now;
+                const hoursLeft = Math.ceil(timeLeft / (60 * 60 * 1000));
+                
+                statusElement.innerHTML = `⚠️ **AVISO AMABLE**: Tu suscripción expira pronto. Tienes ${hoursLeft} horas para renovar y mantener tu control.`;
+                statusElement.classList.add('alert-warning');
+            } 
+            else {
+                document.body.classList.add('app-blocked');
+                statusElement.innerHTML = `⛔ **CONTROL SUSPENDIDO**: Gracias por usar Mi Caja. Para reanudar el acceso a todas las funciones y tu historial, por favor, renueva tu suscripción.`;
+                statusElement.classList.add('alert-danger');
+            }
+        }
 
         // Iniciar la aplicación al cargar la página
         document.addEventListener('DOMContentLoaded', () => {
             generarClienteId(); 
             verificarAccesoDev(); 
             verificarSuscripcion();
+            cargarSelectProductos(); 
             cargarAtajos(); 
             renderizarResumen(); 
             
