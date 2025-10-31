@@ -163,20 +163,6 @@
         }
         
         /* --- Gestión de Suscripción (Footer) --- */
-        footer {
-            text-align: center;
-            padding: 10px 0;
-            margin-top: 20px;
-            font-size: 0.9em;
-            border-top: 1px solid #ccc;
-        }
-        
-        footer button {
-            margin: 5px;
-            padding: 8px 15px;
-            font-size: 0.9em;
-        }
-        
         #subscription-status {
             padding: 10px;
             border-radius: var(--border-radius);
@@ -190,8 +176,10 @@
         
         /* --- Bloqueo de la Aplicación --- */
         .app-blocked #caja-form button:not(#pay-button),
-        .app-blocked #admin-panel,
-        .app-blocked #data-tools button:not(#export-btn) {
+        .app-blocked #catalogo-panel, /* <-- ¡BLOQUEO DE CATÁLOGO REFORZADO! */
+        .app-blocked #data-tools button:not(#export-btn),
+        .app-blocked #caja-form select,
+        .app-blocked #caja-form input {
              pointer-events: none;
              opacity: 0.4;
         }
@@ -200,10 +188,14 @@
              opacity: 0.7;
         }
 
-        /* --- Admin Panel (Editor de Productos) --- */
-        #admin-panel {
-            display: none; /* INICIALMENTE OCULTO */
-            border-left: 5px solid var(--color-secondary);
+        /* --- Catalogo/Admin Panel --- */
+        #admin-dev-panel {
+            display: none; /* EXCLUSIVO DEV - OCULTO */
+            border-left: 5px solid var(--color-danger);
+        }
+        
+        #catalogo-panel {
+            border-left: 5px solid var(--color-success); /* Visible para el comerciante */
         }
 
         .admin-controls {
@@ -278,14 +270,13 @@
         <div id="subscription-status" class="alert-warning"></div>
         <div class="two-columns">
             <button id="pay-button" onclick="pedirCodigoActivacion()">Ingresar Código de Activación</button>
-            <button id="dev-license-btn" style="display:none;" onclick="activarLicenciaAdmin()">Activar DEV (Solo Admin)</button>
         </div>
         <p style="margin-top: 15px; font-size: 0.8em;">ID de Cliente: <span id="client-id-display" style="font-weight: bold;">Cargando...</span></p>
     </div>
     
-    <div id="admin-panel" class="card">
-        <h2>⚙️ Panel de Administración (DEV)</h2>
-        <p>Herramientas de gestión de catálogo de productos.</p>
+    <div id="catalogo-panel" class="card">
+        <h2>🛍️ Catálogo de Productos</h2>
+        <p>Edita tus categorías y productos para facilitar el registro de ventas. Los cambios se guardan automáticamente.</p>
         
         <div class="admin-controls">
             <div class="editor-section">
@@ -315,6 +306,11 @@
         </div>
         
     </div>
+
+    <div id="admin-dev-panel" class="card">
+        <h2>⚙️ Panel de Desarrollo (ADMIN)</h2>
+        <p>Herramientas de configuración y mantenimiento EXCLUSIVAS del desarrollador.</p>
+    </div>
     
     <div class="card" id="caja-form">
         <h2>Registro Rápido</h2>
@@ -334,7 +330,7 @@
         </div>
         
         <div class="form-group">
-            <label for="producto-select">Producto de Listado</label>
+            <label for="producto-select">Producto de Listado (Desplegable por Categoría)</label>
             <select id="producto-select">
                 </select>
         </div>
@@ -396,53 +392,201 @@
     const STORAGE_KEY = 'miCaja_movimientos';
     const SUBSCRIPTION_KEY = 'miCaja_subscripcion';
     const CLIENT_ID_KEY = 'miCaja_client_id'; 
-    const PRODUCTOS_KEY = 'miCaja_productos_extensos'; // CLAVE para la lista editable
+    const PRODUCTOS_KEY = 'miCaja_productos_extensos'; 
     const GRACE_PERIOD_MS = 24 * 60 * 60 * 1000;
     const SUB_DURATION_MS = 30 * 24 * 60 * 60 * 1000;
     const ADMIN_KEY = 'miCaja_admin_license';
-    const ADMIN_UNLOCK_PHRASE = 'desarrollador-maestro'; // <<--- ESTA ES LA CLAVE SECRETA EXCLUSIVA
+    const ADMIN_UNLOCK_PHRASE = 'desarrollador-maestro'; // <<--- CLAVE SECRETA EXCLUSIVA DEV
     
     // --- BASE DE DATOS EXTENSA INICIAL (USADA SOLO LA PRIMERA VEZ) ---
     const PRODUCTOS_INICIALES = {
-        "Abarrotes y Despensa": [
-            "Aceite Comestible", "Arroz Blanco", "Atún en Lata", "Azúcar", "Café Molido", 
-            "Caldos y Sazonadores", "Fideos (Pasta Seca)", "Harina de Trigo", "Lentejas", 
-            "Mermelada", "Pan Rallado", "Sal Común", "Sopa Instantánea", "Yerba Mate"
+        "Alimentos congelados": [
+            "Arvejas congeladas", "Bastones de merluza", "Croquetas de papa", "Empanadas congeladas", 
+            "Espinaca congelada", "Filet de merluza", "Hamburguesas de carne", "Hamburguesas de pollo", 
+            "Helado chocolate", "Helado crema americana", "Helado frutilla", "Helado vainilla", 
+            "Medallones de merluza", "Medallones de verdura", "Milanesas de soja", "Mix de frutas congeladas",
+            "Nuggets de pollo", "Ñoquis congelados", "Pan de ajo congelado", "Papas fritas congeladas", 
+            "Pizzetas congeladas", "Postre helado", "Ravioles congelados", "Rebozados de pescado", 
+            "Supremas de pollo", "Tapas para empanadas congeladas", "Tapas para tartas congeladas", 
+            "Tortillas de papa", "Verduras para wok"
         ],
-        "Lácteos y Refrigerados": [
-            "Crema de Leche", "Huevo (Docena)", "Leche Entera", "Mantequilla", "Margarina", 
-            "Queso Cremoso", "Queso Rallado", "Yogur Bebible", "Yogur en Pote"
+        "Almacen / Despensa": [
+            "Aceite de girasol", "Aceite de oliva", "Avena", "Arroz largo fino", "Arroz parboil", 
+            "Azúcar común", "Azúcar mascabo", "Cacao en polvo", "Café instantáneo", "Café molido", 
+            "Caldo de gallina", "Caldo de verduras", "Fideos guiseros", "Fideos moñito", "Fideos spaghetti", 
+            "Harina común 000", "Harina integral", "Harina leudante", "Lentejas secas", "Mate cocido", 
+            "Polenta", "Porotos", "Puré de tomate", "Salsa de tomate", "Té en saquitos", "Vinagre de alcohol", 
+            "Vinagre de vino", "Yerba mate"
         ],
-        "Bebidas y Jugos": [
-            "Agua Mineral (Botella)", "Bebida Isotónica", "Cerveza (Lata)", "Gaseosa (1.5L)", 
-            "Gaseosa (2.25L)", "Jugo en Polvo", "Jugo Listo (Cartón)", "Vino (Tinto/Blanco)"
+        "Bebidas alcohólicas": [
+            "Anís", "Aperitivo tipo vermut", "Caña", "Cerveza artesanal", "Cerveza en botella", "Cerveza en lata", 
+            "Cerveza negra", "Cerveza rubia", "Cerveza sin alcohol", "Cerveza sin gluten", "Champagne", 
+            "Coctel preparado", "Espumante", "Fernet", "Gancia", "Gin", "Licor de café", "Licor de dulce de leche", 
+            "Licor de hierbas", "Mini botellas (shots)", "Ron", "Sidra", "Vino blanco", "Vino fino", "Vino reserva", 
+            "Vino rosado", "Vino tetrabrik", "Vino tinto", "Vodka", "Whisky"
         ],
-        "Limpieza y Hogar": [
-            "Detergente Lavaplatos", "Detergente Ropa", "Lavandina/Cloro", "Limpiador de Pisos", 
-            "Papel Higiénico", "Servilletas", "Trapo de Piso", "Bolsa de Residuos"
+        "Bebidas sin alcohol": [
+            "Agua con gas", "Agua con sabor", "Agua con vitaminas", "Agua mineral", "Agua mineral sin sodio", 
+            "Agua saborizada", "Agua sin gas", "Agua para bebés", "Bebida a base de té verde", 
+            "Bebida vegetal de almendras", "Bebida vegetal de avena", "Café frío embotellado", "Energizante", 
+            "Gaseosa cola", "Gaseosa lima limón", "Gaseosa naranja", "Isotónica", "Jugo en botella", 
+            "Jugo en polvo", "Jugo multifruta", "Jugo natural exprimido", "Kombucha", "Leche chocolatada", 
+            "Limonada", "Naranjada", "Néctar de durazno", "Néctar de manzana", "Néctar de pera", "Smoothie", 
+            "Soda", "Té frío"
         ],
-        "Snacks y Golosinas": [
-            "Almendras (Bolsa)", "Chicle", "Chocolate", "Galletas Dulces", "Maní Tostado", 
-            "Papas Fritas (Bolsa)", "Caramelos", "Barra de Cereal"
+        "Cereales y galletitas": [
+            "Alfajor de maicena", "Alfajor simple", "Alfajor triple", "Arroz inflado", "Barritas de cereal", 
+            "Bizcochitos", "Budín", "Cereal con chocolate", "Cereal con frutas", "Cereal crocante", "Cereal de avena", 
+            "Cereal de maíz", "Cereal infantil", "Copos de maíz", "Galletas de arroz", "Galletitas de agua", 
+            "Galletitas dulces", "Galletitas integrales", "Galletitas rellenas", "Galletitas saladas", 
+            "Galletitas sin azúcar", "Galletitas sin TACC", "Granola", "Grisines", "Magdalenas", "Obleas", 
+            "Pan dulce", "Salvado de trigo", "Snack de avena", "Turrones"
         ],
-        "Panadería y Repostería": [
-            "Bizcochos", "Facturas (Unidad)", "Medialunas", "Pan de Molde", "Pan Francés (Kilo)",
-            "Tarta (Porción)"
+        "Condimentos y aderezos": [
+            "Aceite de girasol", "Aceite de maíz", "Aceite de oliva", "Aderezo para ensaladas", "Aderezo tipo caesar", 
+            "Aderezo tipo ranch", "Ají molido", "Cúrcuma", "Curry", "Comino", "Ketchup", "Laurel", "Mayonesa", 
+            "Mostaza", "Orégano", "Perejil seco", "Pimienta blanca molida", "Pimienta negra molida", "Pimentón dulce", 
+            "Pimentón picante", "Provenzal", "Sal fina", "Sal gruesa", "Salsa barbacoa", "Salsa de soja", "Salsa golf", 
+            "Salsa inglesa", "Salsa tabasco", "Vinagre de manzana", "Vinagre de vino"
+        ],
+        "Cuidado del bebé": [
+            "Aceite para bebé", "Agua para bebés", "Algodón", "Arnés", "Babero", "Biberón", "Cereal infantil", 
+            "Cepillo de cerdas suaves", "Chupete", "Cinturón de auto para perro", "Colonia bebé", "Cotonetes", 
+            "Crema para paspaduras", "Esponja suave", "Gasas estériles", "Jabón líquido bebé", "Juguete de baño", 
+            "Leche maternizada", "Loción hidratante bebé", "Mamadera", "Manta bebé", "Pañales descartables", 
+            "Peine bebé", "Plato y cuchara infantil", "Protector de cuna", "Set de uñas bebé", "Shampoo bebé", 
+            "Talco", "Toalla bebé", "Toallitas desinfectantes", "Toallitas húmedas", "Toallón bebé"
+        ],
+        "Cuidado del cabello": [
+            "Aceite para el cabello", "Acondicionador", "Acondicionador sin enjuague", "Bálsamo capilar", 
+            "Cepillo de pelo", "Cera capilar", "Crema de enjuague", "Crema para peinar", "Decolorante", 
+            "Espuma moldeadora", "Gel capilar", "Gomitas para el cabello", "Hebillas", "Laca", "Máscara capilar", 
+            "Peine", "Protector térmico", "Serum capilar", "Shampoo", "Shampoo anticaspa", "Shampoo hidratante", 
+            "Shampoo neutro", "Shampoo normal", "Shampoo para bebé", "Shampoo para cabello teñido", "Shampoo sin sal", 
+            "Shampoo sólido", "Spray fijador", "Tintura para el cabello", "Tónico capilar", "Tratamiento anti-frizz"
+        ],
+        "Cuidado facial y corporal": [
+            "Aceite corporal", "After sun", "Agua micelar", "Bálsamo labial", "Colonia corporal", "Crema antiarrugas", 
+            "Crema contorno de ojos", "Crema facial hidratante", "Crema humectante corporal", "Crema para manos", 
+            "Crema para pies", "Desodorante en aerosol", "Desodorante en barra", "Desodorante íntimo", 
+            "Desodorante roll-on", "Exfoliante corporal", "Gel de baño", "Jabón de tocador", "Jabón íntimo", 
+            "Jabón líquido corporal", "Limpiador facial", "Loción corporal", "Mascarilla facial", "Perfume", 
+            "Protector solar corporal", "Protector solar facial", "Talco corporal", "Toallas desmaquillantes", 
+            "Toallas húmedas corporales", "Tónico facial"
+        ],
+        "Dulces, golosinas y chocolates": [
+            "Alfajor simple", "Alfajor triple", "Alfajor de maicena", "Barra de cereal con chocolate", "Bocadito dulce de leche", 
+            "Bombón relleno", "Bombones", "Bon o bon", "Cacao para repostería", "Caramelos duros", "Caramelos masticables", 
+            "Chicle", "Chocolate amargo", "Chocolate blanco", "Chocolate con leche", "Chocolate en barra", 
+            "Chocolate para taza", "Confites", "Dulce de batata", "Dulce de leche", "Dulce de membrillo", 
+            "Galletitas bañadas", "Golosina sin azúcar", "Gomitas", "Malvaviscos", "Miel", "Pasta de maní", 
+            "Pastillas", "Praline de maní", "Tableta de chocolate", "Turrón de maní"
+        ],
+        "Fiambres y embutidos": [
+            "Bondiola", "Bondiola ahumada", "Chorizo parrillero", "Chorizo seco", "Copetín de salame", "Fiambre de pavo", 
+            "Fiambre de pollo", "Fiambre light", "Fiambre picado fino", "Fiambre picado grueso", "Jamón ahumado", 
+            "Jamón cocido", "Jamón crudo", "Jamón natural", "Leberwurst", "Lomito cocido", "Longaniza", "Morcilla", 
+            "Mortadela", "Mortadela con pistacho", "Paleta cocida", "Panceta", "Paté", "Queso de cerdo", 
+            "Queso untable con jamón", "Salame", "Salamín", "Salchicha parrillera", "Salchicha tipo viena", 
+            "Salchichón"
+        ],
+        "Hogar y limpieza": [
+            "Ambientador eléctrico", "Balde", "Bolsas de residuos", "Cepillo de baño", "Detergente lavavajillas", 
+            "Detergente lavavajillas máquina", "Desinfectante", "Desodorante de ambientes", "Escoba", 
+            "Esponja de cocina", "Esponja metálica", "Guantes de limpieza", "Insecticida", "Lavandina", 
+            "Limpiador baño", "Limpiador cremoso", "Limpiador multiuso", "Limpiador perfumado", "Limpiador pisos", 
+            "Limpia hornos", "Limpiavidrios", "Paño microfibra", "Pastilla para inodoro", "Recogedor", 
+            "Repelente de insectos", "Rollo de cocina", "Secador de piso", "Suavizante para ropa", "Trapo de piso", 
+            "Trapo rejilla"
+        ],
+        "Lácteos": [
+            "Crema de leche", "Flan", "Leche chocolatada", "Leche descremada", "Leche en polvo", "Leche entera", 
+            "Leche parcialmente descremada", "Leche saborizada", "Manteca", "Margarina", "Postre de chocolate", 
+            "Postre de vainilla", "Queso azul", "Queso barra", "Queso blanco", "Queso cabra", "Queso cremoso", 
+            "Queso de máquina", "Queso mozzarella", "Queso pategrás", "Queso por salut", "Queso rallado", 
+            "Queso rallado fino", "Queso untable", "Ricota", "Yogur bebible", "Yogur con cereales", "Yogur con frutas", 
+            "Yogur descremado", "Yogur firme"
+        ],
+        "Mascotas": [
+            "Alimento para cachorros", "Alimento para gatos senior", "Alimento seco para gato", "Alimento seco para perro", 
+            "Alimento húmedo para gato", "Alimento húmedo para perro", "Arena absorbente", "Arena sanitaria para gato", 
+            "Arnés", "Bebedero", "Bolsas sanitarias", "Camita", "Casa plástica", "Cepillo para perro", 
+            "Cinturón de auto para perro", "Collar", "Comedero", "Correa", "Corta uñas para mascota", 
+            "Galletitas para perro", "Golosina dental para perro", "Hueso masticable", "Juguete de goma", 
+            "Juguete para gato", "Juguete para perro", "Peine antipulgas", "Pelota de tenis", "Pipeta antipulgas", 
+            "Shampoo para perro", "Talco antipulgas"
+        ],
+        "Panadería y pastelería": [
+            "Bizcochos", "Bizcochuelo", "Donas", "Facturas", "Galletas dulces", "Masa hojaldre", "Masa de pizza", 
+            "Masa para tartas", "Medialunas", "Pan árabe", "Pan casero", "Pan de ajo congelado", "Pan de campo", 
+            "Pan de campo integral", "Pan de hamburguesa", "Pan de manteca", "Pan de molde", "Pan de pancho", 
+            "Pan francés", "Pan integral", "Pan lactal", "Pan pita", "Pan rallado", "Pan de salvado", 
+            "Pan saborizado", "Pan sin gluten", "Pizza", "Tarta dulce", "Tarta salada", "Tortas", "Budín"
+        ],
+        "Papel y descartables": [
+            "Bandejas descartables", "Bolsas de consorcio", "Bolsas de residuos", "Bolsitas para freezer", 
+            "Cajas de cartón", "Cajas para tortas", "Cucharitas de plástico", "Cubiertos biodegradables", 
+            "Cubiertos descartables", "Envoltorio autoadhesivo", "Envoltorios plásticos", "Film plástico", 
+            "Guantes descartables", "Manteles descartables", "Moldes de aluminio", "Pajitas de papel", 
+            "Pañuelos descartables", "Papel aluminio", "Papel higiénico", "Papel manteca", "Platos descartables", 
+            "Rollos de cocina", "Servilletas", "Sorbetes", "Tapas para vasos", "Tenedores de madera", 
+            "Toallas de papel", "Toallitas húmedas", "Vasos descartables"
+        ],
+        "Pastas y arroces": [
+            "Arroz doble carolina", "Arroz integral", "Arroz largo fino", "Arroz parboil", "Arroz para risotto", 
+            "Arroz para sushi", "Canelones", "Capelettis", "Cous cous", "Fideos de arroz", "Fideos guiseros", 
+            "Fideos integrales", "Fideos mostachol", "Fideos sin gluten", "Fideos spaghetti", "Fideos tirabuzón", 
+            "Harina de maíz", "Lasagna seca", "Ñoquis", "Polenta", "Ravioles", "Salsa blanca lista", 
+            "Salsa boloñesa lista", "Salsa carbonara", "Salsa cuatro quesos", "Salsa fileto", "Salsa pesto", 
+            "Sémola", "Sorrentinos", "Tallarines"
+        ],
+        "Productos de limpieza y perfumería": [
+            "Acondicionador", "Algodón", "Aromatizador automático", "Cepillo de dientes", "Crema corporal", 
+            "Crema de manos", "Desinfectante", "Desodorante ambiental", "Desodorante corporal", "Detergente para ropa", 
+            "Enjuague bucal", "Hisopos", "Jabón corporal", "Jabón en polvo", "Jabón líquido", "Lavandina", 
+            "Limpiador de pisos", "Pañales adultos", "Papel higiénico", "Pasta dental", "Perfume", 
+            "Protectores diarios", "Quitamanchas", "Repelente corporal", "Servilletas", "Shampoo", 
+            "Suavizante para ropa", "Toallas femeninas", "Toallas húmedas"
+        ],
+        "Verdulería y frutería": [
+            "Acelga", "Ajo", "Banana", "Batata", "Berenjena", "Brócoli", "Calabaza", "Cebolla", "Choclo", "Ciruela", 
+            "Durazno", "Espinaca", "Frutilla", "Kiwi", "Lechuga", "Limón", "Mandarina", "Manzana", "Melón", "Naranja", 
+            "Palta", "Papa", "Pepino", "Pera", "Pimiento", "Pomelo", "Repollo", "Sandía", "Tomate", "Uva", 
+            "Zanahoria", "Zapallo", "Zapallito", "Zucchini"
         ]
     };
     
+
     // --- FUNCIONES DE ALMACENAMIENTO DE PRODUCTOS ---
     function obtenerProductos() {
         const productosGuardados = localStorage.getItem(PRODUCTOS_KEY);
         if (productosGuardados) {
             return JSON.parse(productosGuardados);
         }
-        localStorage.setItem(PRODUCTOS_KEY, JSON.stringify(PRODUCTOS_INICIALES));
-        return PRODUCTOS_INICIALES;
+        
+        // 1. Clonar y ordenar la base de datos inicial
+        const productosOrdenados = {};
+        const categoriasOrdenadas = Object.keys(PRODUCTOS_INICIALES).sort();
+
+        categoriasOrdenadas.forEach(cat => {
+            productosOrdenados[cat] = PRODUCTOS_INICIALES[cat].slice().sort(); // Ordena los productos
+        });
+        
+        // 2. Guardar la versión inicial ordenada
+        localStorage.setItem(PRODUCTOS_KEY, JSON.stringify(productosOrdenados));
+        return productosOrdenados;
     }
 
     function guardarProductos(productos) {
-        localStorage.setItem(PRODUCTOS_KEY, JSON.stringify(productos));
+        // Asegura que al guardar, las categorías y productos estén ordenados
+        const productosOrdenados = {};
+        const categorias = Object.keys(productos).sort();
+        
+        categorias.forEach(cat => {
+            productosOrdenados[cat] = productos[cat].slice().sort();
+        });
+
+        localStorage.setItem(PRODUCTOS_KEY, JSON.stringify(productosOrdenados));
         cargarSelectProductos(); 
         cargarEditorProductos(); 
     }
@@ -457,7 +601,8 @@
         }
         
         const productos = obtenerProductos();
-        const nombreNormalizado = nombre.charAt(0).toUpperCase() + nombre.slice(1).toLowerCase();
+        // Capitalización simple para consistencia, manteniendo el nombre original
+        const nombreNormalizado = nombre.charAt(0).toUpperCase() + nombre.slice(1); 
 
         if (productos.hasOwnProperty(nombreNormalizado)) {
             alert("Esa categoría ya existe.");
@@ -501,14 +646,14 @@
         }
 
         productos[categoria].push(nombreNormalizado);
-        productos[categoria].sort();
+        // El orden se asegura en guardarProductos()
         guardarProductos(productos);
         
         nombreInput.value = '';
     }
     
     function eliminarProducto(categoria, nombre) {
-        if (!confirm(`¿Estás seguro de que quieres eliminar "${nombre}"?`)) return;
+        if (!confirm(`¿Estás seguro de que quieres eliminar "${nombre}" de la categoría ${categoria}?`)) return;
 
         const productos = obtenerProductos();
         if (productos[categoria]) {
@@ -525,7 +670,8 @@
         listaEditor.innerHTML = '';
         selectAdd.innerHTML = '<option value="" disabled selected>Selecciona una categoría existente</option>';
         
-        const categoriasOrdenadas = Object.keys(productos).sort();
+        // Las categorías ya vienen ordenadas alfabéticamente desde obtenerProductos/guardarProductos
+        const categoriasOrdenadas = Object.keys(productos);
 
         categoriasOrdenadas.forEach(categoria => {
             const option = document.createElement('option');
@@ -536,23 +682,24 @@
             const catLi = document.createElement('li');
             catLi.className = 'categoria-item';
             catLi.innerHTML = `
-                <span>${categoria}</span>
+                <span>${categoria} (${productos[categoria].length} productos)</span>
                 <button class="btn-cat-del" onclick="eliminarCategoria('${categoria.replace(/'/g, "\\'")}')">Eliminar Cat.</button>
             `;
             listaEditor.appendChild(catLi);
             
+            // Los productos ya vienen ordenados alfabéticamente
             productos[categoria].forEach(producto => {
                 const prodLi = document.createElement('li');
                 prodLi.className = 'producto-item';
                 prodLi.innerHTML = `
-                    <span>${producto}</span>
+                    <span>- ${producto}</span>
                     <button class="btn-producto-del" onclick="eliminarProducto('${categoria.replace(/'/g, "\\'")}', '${producto.replace(/'/g, "\\'")}')">🗑️</button>
                 `;
                 listaEditor.appendChild(prodLi);
             });
         });
         if (selectAdd.options.length > 1) {
-             selectAdd.selectedIndex = 1;
+             selectAdd.selectedIndex = 0; // Deja la opción por defecto visible
         } 
     }
     
@@ -565,12 +712,14 @@
         
         selectElement.innerHTML = '<option value="" disabled selected>Selecciona un producto del listado...</option>'; 
         
-        const categoriasOrdenadas = Object.keys(productos).sort();
+        // Las categorías ya vienen ordenadas
+        const categoriasOrdenadas = Object.keys(productos);
         
         categoriasOrdenadas.forEach(categoria => {
             const optgroup = document.createElement('optgroup');
             optgroup.label = categoria;
             
+            // Los productos ya vienen ordenados
             productos[categoria].forEach(producto => {
                 const option = document.createElement('option');
                 option.value = producto;
@@ -588,25 +737,27 @@
     function normalizarProducto(producto) {
         if (!producto) return '';
         
-        let limpio = producto.toLowerCase().trim();
-        limpio = removerAcentos(limpio).replace(/[^a-z0-9\s]/g, '');
-        
-        // --- MAPEO MANUAL REFORZADO (Asegura consistencia) ---
-        
-        if (limpio.includes('azucar') || limpio.includes('asucar')) return 'Azúcar'; 
-        if (limpio.includes('leche') || limpio.includes('lecche') || limpio.includes('lechhes')) return 'Leche Entera'; 
-        if (limpio.includes('pan') || limpio.includes('panes')) return 'Pan Francés (Kilo)'; 
-        if (limpio.includes('gaseosa') || limpio.includes('coca') || limpio.includes('pepsi')) return 'Gaseosa (2.25L)'; 
-        if (limpio.includes('fideo') || limpio.includes('tallarin') || limpio.includes('pastas')) return 'Fideos (Pasta Seca)'; 
-        if (limpio.includes('arroz') || limpio.includes('arros')) return 'Arroz Blanco'; 
-        if (limpio.includes('proveedor') || limpio.includes('probeor') || limpio.includes('probeor1') || limpio.includes('proveedor1')) return 'Proveedor'; 
-        if (limpio.includes('tarte')) return 'Tarta (Porción)'; 
-
+        // 1. Normalización simple (capitalización y limpieza básica)
         let productoLimpio = producto.trim().toLowerCase();
-        return productoLimpio.charAt(0).toUpperCase() + productoLimpio.slice(1);
+        let normalizado = productoLimpio.charAt(0).toUpperCase() + productoLimpio.slice(1);
+        
+        // 2. Mapeo específico de la lista inicial (para evitar inconsistencias en el resumen)
+        const productosActuales = obtenerProductos();
+        const productoSinAcentos = removerAcentos(productoLimpio);
+
+        for (const categoria in productosActuales) {
+            for (const item of productosActuales[categoria]) {
+                if (removerAcentos(item.toLowerCase()) === productoSinAcentos) {
+                    return item; // Devuelve el nombre exacto del listado
+                }
+            }
+        }
+        
+        // Si no se encuentra en el listado, se devuelve la versión capitalizada
+        return normalizado; 
     }
 
-    // --- GESTIÓN DE CAJA ---
+    // --- GESTIÓN DE CAJA (Movimientos y Resumen) ---
     function obtenerMovimientos() { 
         const movimientos = localStorage.getItem(STORAGE_KEY);
         return movimientos ? JSON.parse(movimientos) : [];
@@ -619,7 +770,7 @@
 
     function agregarMovimiento() {
         if (document.body.classList.contains('app-blocked')) {
-            alert("La aplicación está suspendida. Por favor, renueva tu suscripción para continuar.");
+            alert("🛑 La aplicación está Bloqueada. Suscripción Vencida. Por favor, ingresa el Código de Activación para registrar movimientos.");
             return;
         }
         
@@ -641,7 +792,7 @@
              return;
         }
         
-        const productoFinal = productoSelect ? productoBase : normalizarProducto(productoBase);
+        const productoFinal = normalizarProducto(productoBase); // Usa la normalización para consistencia
 
 
         const hoy = new Date().toLocaleDateString('es-AR', { timeZone: 'America/Argentina/Buenos_Aires' });
@@ -743,6 +894,11 @@
        }
 
     function borrarDatosDia() { 
+        if (document.body.classList.contains('app-blocked')) {
+            alert("🛑 Aplicación Bloqueada. Suscripción Vencida. No se pueden realizar operaciones de borrado.");
+            return;
+        }
+        
         const hoy = new Date().toLocaleDateString('es-AR', { timeZone: 'America/Argentina/Buenos_Aires' });
         
         if (!confirm(`¡ATENCIÓN! ¿Estás seguro de que quieres BORRAR TODOS los movimientos de HOY (${hoy})? Esta acción es irreversible. Recuerda exportar si quieres conservar el registro.`)) {
@@ -815,7 +971,7 @@
     }
 
     function pedirCodigoActivacion() {
-        const codigo = prompt("Ingresa el Código de Activación (o la frase secreta DEV):");
+        const codigo = prompt("Ingresa el Código de Activación (o la frase secreta DEV si eres el administrador):");
         if (codigo) {
             const codigoLimpio = codigo.toUpperCase().trim();
             
@@ -846,25 +1002,25 @@
     function activarLicenciaAdmin() {
         localStorage.setItem(ADMIN_KEY, 'active');
         verificarSuscripcion();
-        alert("🔑 Licencia DEV activada. Ahora tienes acceso al Panel Admin.");
+        alert("🔑 Licencia DEV activada. Ahora tienes acceso al Panel de Desarrollo.");
     }
 
     function verificarSuscripcion() {
         const statusElement = document.getElementById('subscription-status');
-        const adminPanel = document.getElementById('admin-panel');
+        const adminDevPanel = document.getElementById('admin-dev-panel');
         const payButton = document.getElementById('pay-button');
         const now = Date.now();
         
         // --- Verificación DEV (ADMIN) ---
         const isAdminActive = localStorage.getItem(ADMIN_KEY) === 'active';
         if (isAdminActive) {
-            adminPanel.style.display = 'block'; // Muestra solo para el admin
+            adminDevPanel.style.display = 'block'; // Muestra solo para el desarrollador
             document.body.classList.remove('app-blocked');
             statusElement.className = 'alert-success';
             statusElement.textContent = "✅ Licencia DEV Activa (ADMIN)";
             return;
         } else {
-            adminPanel.style.display = 'none'; // Oculta para el resto
+            adminDevPanel.style.display = 'none'; // Oculta para el resto
         }
         
         // --- Verificación de Suscripción de Cliente Normal ---
@@ -894,7 +1050,7 @@
             // Suscripción Vencida (Bloqueo)
             document.body.classList.add('app-blocked');
             statusElement.className = 'alert-danger';
-            statusElement.textContent = "🛑 Aplicación Bloqueada. Suscripción Vencida.";
+            statusElement.textContent = "🛑 Aplicación Bloqueada. Suscripción Vencida. ¡Ingresa el código de activación!";
             payButton.classList.remove('disabled');
         }
     }
