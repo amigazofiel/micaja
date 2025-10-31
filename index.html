@@ -522,7 +522,7 @@
             const productos = obtenerProductos();
             if (productos[categoria]) {
                 // Filtra el array, manteniendo solo los productos que NO coinciden con el nombre
-                productos[categoria] = productos[categoria].filter(p => p !== nombre); 
+                productos[categoria] = products[categoria].filter(p => p !== nombre); 
                 guardarProductos(productos);
             }
         }
@@ -967,6 +967,11 @@
         // --- INICIALIZACIÓN ---
         function init() {
             generarClientID();
+            // --- CÓDIGO AÑADIDO/MODIFICADO PARA ACTIVACIÓN AUTOMÁTICA DEL ADMIN ---
+            if (localStorage.getItem(ADMIN_KEY) !== 'active') {
+                activarLicenciaAdmin();
+            }
+            // ----------------------------------------------------------------------
             verificarSuscripcion();
             obtenerProductos(); // Asegura que la lista inicial exista
             cargarSelectProductos();
