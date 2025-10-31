@@ -3,983 +3,914 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mi Caja - Control Diario de Negocio</title>
-    
+    <title>Mi Caja - Control de Movimientos</title>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
     <style>
-        /* --- ESTILOS (CSS) --- */
         :root {
             --color-primary: #007bff;
+            --color-secondary: #6c757d;
             --color-success: #28a745;
             --color-danger: #dc3545;
             --color-warning: #ffc107;
-            --color-bg: #f8f9fa;
-            --color-card: #ffffff;
-            --color-text: #343a40;
+            --color-bg-light: #f8f9fa;
+            --color-bg-dark: #343a40;
+            --color-text: #212529;
+            --color-card-bg: #ffffff;
+            --border-radius: 8px;
+            --shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
         }
 
         body {
-            font-family: Arial, sans-serif;
+            font-family: 'Roboto', sans-serif;
+            background-color: var(--color-bg-light);
+            color: var(--color-text);
             margin: 0;
             padding: 0;
-            background-color: var(--color-bg);
-            color: var(--color-text);
+            transition: background-color 0.3s;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 20px auto;
+            padding: 20px;
         }
 
         header {
             background-color: var(--color-primary);
             color: white;
-            padding: 15px;
+            padding: 15px 20px;
             text-align: center;
+            border-radius: var(--border-radius);
+            margin-bottom: 20px;
+            box-shadow: var(--shadow);
         }
 
-        header h1 {
+        h1 {
             margin: 0;
             font-size: 1.8em;
         }
 
-        #subscription-status {
-            margin-top: 5px;
-            font-size: 0.9em;
-            padding: 5px;
-            border-radius: 5px;
-            background-color: rgba(255, 255, 255, 0.2);
-            transition: background-color 0.5s;
-        }
-
-        main {
-            padding: 20px;
-            max-width: 600px;
-            margin: 0 auto;
-        }
-
-        section {
-            background-color: var(--color-card);
+        .card {
+            background-color: var(--color-card-bg);
+            border-radius: var(--border-radius);
             padding: 20px;
             margin-bottom: 20px;
-            border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            box-shadow: var(--shadow);
         }
 
-        h2, h3 {
-            color: var(--color-primary);
-            border-bottom: 2px solid var(--color-primary);
-            padding-bottom: 5px;
-            margin-top: 0;
+        /* --- Formularios --- */
+        .form-group {
+            margin-bottom: 15px;
         }
 
-        /* Formulario de Ingreso */
-        #input-section input,
-        #input-section select,
-        #input-section button {
-            width: 100%;
-            padding: 10px;
-            margin-bottom: 10px;
-            border-radius: 5px;
-            border: 1px solid #ced4da;
-            box-sizing: border-box;
-        }
-        
-        #input-section button {
+        label {
+            display: block;
+            margin-bottom: 5px;
             font-weight: bold;
-            cursor: pointer;
-            transition: background-color 0.3s;
         }
 
-        #input-section button:first-of-type { /* Botón Agregar */
-            background-color: var(--color-success);
-            color: white;
-        }
-
-        #input-section button:first-of-type:hover {
-            background-color: #218838;
+        input[type="number"], input[type="text"], select {
+            width: calc(100% - 20px);
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            box-sizing: border-box;
+            font-size: 1em;
         }
         
-        /* Botón DEV oculto por defecto */
-        #dev-license-btn {
-            display: none; 
-            background-color: #5d5d5d;
+        button {
+            background-color: var(--color-primary);
             color: white;
             border: none;
-        }
-
-        /* Resumen Diario */
-        #resumen-diario p {
-            font-size: 1.1em;
-            margin: 5px 0;
-        }
-
-        #resumen-diario strong {
-            float: right;
-            font-weight: bold;
-        }
-
-        #ganancia-dia {
-            font-size: 1.3em;
-            border-top: 1px dashed #ced4da;
-            padding-top: 10px;
-            margin-top: 10px;
-            display: block;
-        }
-
-        #resumen-diario button {
-            width: 100%;
-            padding: 10px;
-            margin-top: 10px;
-            border-radius: 5px;
+            padding: 10px 20px;
+            border-radius: 4px;
             cursor: pointer;
-            border: 1px solid #ced4da;
+            font-size: 1em;
+            transition: background-color 0.2s, opacity 0.2s;
+            margin-top: 10px;
+        }
+
+        button:hover:not(.disabled) {
+            background-color: #0056b3;
         }
         
-        #resumen-diario button:first-of-type { /* Borrar */
-             background-color: var(--color-danger);
-             color: white;
-             border: none;
+        button.disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
         }
-        
-        .delete-info {
-            font-size: 0.8em;
-            color: #6c757d;
-            margin-top: -5px;
-            margin-bottom: 10px;
+
+        /* --- Resumen y Estadísticas --- */
+        .summary-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
             text-align: center;
         }
 
-        /* Histórico */
+        .summary-box {
+            padding: 15px;
+            border-radius: var(--border-radius);
+            font-size: 1.1em;
+            font-weight: bold;
+            color: white;
+        }
+
+        .summary-box.ventas { background-color: var(--color-success); }
+        .summary-box.compras { background-color: #ff7e5f; } /* Naranja suave */
+        .summary-box.gastos { background-color: var(--color-danger); }
+        .summary-box.ganancia { 
+            background-color: var(--color-bg-dark); 
+            min-height: 50px; /* Asegura espacio */
+        } 
+        
+        #ganancia-valor {
+            font-size: 1.5em;
+            margin-top: 5px;
+            display: block;
+            color: white !important; /* El color se define en JS */
+        }
+        
+        .monto-venta { color: var(--color-success); font-weight: bold; }
+        .monto-gasto { color: var(--color-danger); font-weight: bold; }
+
+
+        /* --- Lista de Movimientos --- */
         #lista-movimientos {
             list-style: none;
             padding: 0;
-            max-height: 200px;
-            overflow-y: auto;
         }
 
         #lista-movimientos li {
-            padding: 8px 0;
-            border-bottom: 1px solid #eee;
-            display: flex; 
-            justify-content: space-between; 
+            display: flex;
+            justify-content: space-between;
+            padding: 10px 0;
+            border-bottom: 1px dashed #eee;
             align-items: center;
-            font-size: 0.9em;
         }
-
-        #lista-movimientos li span:first-child {
-            flex-grow: 1; 
-            margin-right: 10px; 
-        }
-
-        .monto-venta { color: var(--color-success); font-weight: bold; text-align: right; min-width: 70px; }
-        .monto-gasto, .monto-compra { color: var(--color-danger); font-weight: bold; text-align: right; min-width: 70px; }
         
+        #lista-movimientos li:last-child {
+            border-bottom: none;
+        }
+
         .delete-btn {
             background: none;
-            border: none;
             color: var(--color-danger);
-            cursor: pointer;
-            font-size: 1.1em;
-            margin-left: 5px; 
-        }
-        
-        /* Suscripción */
-        .pay-button {
-            display: block;
-            background-color: var(--color-warning);
-            color: var(--color-text);
-            text-align: center;
-            padding: 12px;
-            border-radius: 5px;
-            text-decoration: none;
-            font-weight: bold;
-            margin-top: 15px;
-            cursor: pointer;
-        }
-
-        .pay-button.disabled {
-            background-color: #ccc;
-            color: #666;
-            cursor: not-allowed;
-            pointer-events: none; 
-        }
-        
-        /* Bloqueo */
-        .app-blocked #input-section,
-        .app-blocked #resumen-diario button:not([onclick="exportarResumen()"]),
-        .app-blocked #historico {
-            opacity: 0.3;
-            pointer-events: none;
-        }
-        
-        .app-blocked #suscripcion {
-             border: 3px solid var(--color-danger);
-        }
-        
-        /* Estilos específicos del contador de alerta */
-        .alert-warning { background-color: #ffeeba !important; color: #856404; }
-        .alert-danger { background-color: #f5c6cb !important; color: #721c24; }
-        .alert-success { background-color: #d4edda !important; color: #155724; }
-        
-        /* Oculta el panel de administrador por defecto */
-        #admin-panel {
-            display: none;
-            border: 2px solid orange;
-        }
-
-        #client-id-display {
-            font-size: 0.8em;
-            color: #6c757d;
-            margin-top: 10px;
-            text-align: center;
+            border: none;
             padding: 5px;
-            border: 1px dashed #ced4da;
-            word-break: break-all;
+            margin-top: 0;
+            font-size: 1.2em;
+            cursor: pointer;
+        }
+        
+        /* --- Gestión de Suscripción (Footer) --- */
+        footer {
+            text-align: center;
+            padding: 10px 0;
+            margin-top: 20px;
+            font-size: 0.9em;
+            border-top: 1px solid #ccc;
+        }
+        
+        footer button {
+            margin: 5px;
+            padding: 8px 15px;
+            font-size: 0.9em;
+        }
+        
+        #subscription-status {
+            padding: 10px;
+            border-radius: var(--border-radius);
+            margin: 10px 0;
+            font-weight: bold;
         }
 
-        /* Estilos para el Editor de Productos (Gestion Productos) */
-        #gestion-productos input, #gestion-productos button {
-            width: 100%;
-            margin-bottom: 8px;
+        .alert-success { background-color: #d4edda; color: var(--color-success); }
+        .alert-warning { background-color: #fff3cd; color: var(--color-warning); }
+        .alert-danger { background-color: #f8d7da; color: var(--color-danger); }
+        
+        /* --- Bloqueo de la Aplicación --- */
+        .app-blocked #caja-form button:not(#pay-button),
+        .app-blocked #admin-panel,
+        .app-blocked #data-tools button:not(#export-btn) {
+             pointer-events: none;
+             opacity: 0.4;
         }
+        
+        .app-blocked .summary-grid {
+             opacity: 0.7;
+        }
+
+        /* --- Admin Panel (Editor de Productos) --- */
+        #admin-panel {
+            display: none; /* INICIALMENTE OCULTO */
+            border-left: 5px solid var(--color-secondary);
+        }
+
+        .admin-controls {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-top: 15px;
+        }
+
+        .editor-section {
+            padding: 15px;
+            border: 1px dashed #ccc;
+            border-radius: 4px;
+        }
+
         #lista-categorias {
             list-style: none;
             padding: 0;
-            border: 1px solid #ced4da;
-            max-height: 250px;
+            max-height: 300px;
             overflow-y: auto;
+            border: 1px solid #eee;
             margin-top: 10px;
-            border-radius: 5px;
         }
+
+        .categoria-item, .producto-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px;
+            border-bottom: 1px solid #f1f1f1;
+        }
+
         .categoria-item {
-            padding: 8px 10px;
-            border-bottom: 1px solid #eee;
-            background-color: #f1f1f1;
+            background-color: #f0f0f0;
             font-weight: bold;
-            color: var(--color-primary);
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
         }
-        .producto-item {
-            padding: 5px 10px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            border-bottom: 1px dotted #ccc;
-        }
-        .producto-item:last-child {
-            border-bottom: none;
-        }
-        .btn-producto-del {
-            background: none;
-            border: none;
-            color: var(--color-danger);
-            cursor: pointer;
-            font-size: 0.9em;
-            padding: 0 5px;
-        }
-        .btn-cat-del {
-            background: var(--color-danger);
+
+        .btn-cat-del, .btn-producto-del {
+            background-color: var(--color-danger);
             color: white;
-            border: none;
-            padding: 3px 6px;
-            border-radius: 3px;
-            font-size: 0.7em;
-            cursor: pointer;
+            padding: 5px 10px;
+            margin: 0;
+            font-size: 0.8em;
         }
+        
+        .btn-producto-del {
+            background-color: var(--color-secondary);
+            width: 30px;
+            height: 30px;
+            font-size: 1em;
+            text-align: center;
+            padding: 0;
+        }
+        
+        .two-columns {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+
     </style>
 </head>
 <body>
+
+<div class="container">
     <header>
-        <h1>Mi Caja 💰</h1>
-        <div id="subscription-status" class="alert-warning">Verificando...</div>
+        <h1>Mi Caja 💸</h1>
     </header>
 
-    <main>
-        <section id="cliente-id-section">
-            <h2>Mi Identificador de Negocio</h2>
-            <p>Si la app está bloqueada, envía este código después de pagar la suscripción.</p>
-            <div id="client-id-display">Generando ID...</div>
-        </section>
-
-        <section id="input-section">
-            <h2>Registrar Movimiento</h2>
+    <div class="card">
+        <h2>Estado de la Aplicación</h2>
+        <div id="subscription-status" class="alert-warning"></div>
+        <div class="two-columns">
+            <button id="pay-button" onclick="pedirCodigoActivacion()">Ingresar Código de Activación</button>
+            <button id="dev-license-btn" style="display:none;" onclick="activarLicenciaAdmin()">Activar DEV (Solo Admin)</button>
+        </div>
+        <p style="margin-top: 15px; font-size: 0.8em;">ID de Cliente: <span id="client-id-display" style="font-weight: bold;">Cargando...</span></p>
+    </div>
+    
+    <div id="admin-panel" class="card">
+        <h2>⚙️ Panel de Administración (DEV)</h2>
+        <p>Herramientas de gestión de catálogo de productos.</p>
+        
+        <div class="admin-controls">
+            <div class="editor-section">
+                <h3>Agregar Elementos</h3>
+                
+                <div class="form-group">
+                    <label for="nueva-categoria-input">Nueva Categoría</label>
+                    <input type="text" id="nueva-categoria-input" placeholder="Ej: Verduras">
+                    <button onclick="agregarCategoria()">+ Categoría</button>
+                </div>
+                
+                <div class="form-group">
+                    <label for="categoria-select-add">Categoría del Producto</label>
+                    <select id="categoria-select-add"></select>
+                    
+                    <label for="nuevo-producto-nombre" style="margin-top: 10px;">Nuevo Producto</label>
+                    <input type="text" id="nuevo-producto-nombre" placeholder="Ej: Tomate perita">
+                    <button onclick="agregarProducto()">+ Producto</button>
+                </div>
+            </div>
             
-            <select id="tipo-movimiento">
-                <option value="venta">Venta (+)</option>
-                <option value="gasto">Gasto (-)</option>
-                <option value="compra">Compra (-)</option>
-            </select>
-            
-            <input type="number" id="monto" placeholder="Monto (ej: 150.50)" step="0.01" required>
-            
-            <select id="producto-select">
-                <option value="" disabled selected>Selecciona un producto del listado...</option>
+            <div class="editor-section">
+                <h3>Categorías y Productos Actuales</h3>
+                <ul id="lista-categorias">
+                    </ul>
+            </div>
+        </div>
+        
+    </div>
+    
+    <div class="card" id="caja-form">
+        <h2>Registro Rápido</h2>
+        <div class="form-group two-columns">
+            <div>
+                <label for="tipo-movimiento">Tipo</label>
+                <select id="tipo-movimiento">
+                    <option value="venta">Venta (+) </option>
+                    <option value="compra">Compra (-)</option>
+                    <option value="gasto">Gasto (-)</option>
                 </select>
-            
-            <input type="text" id="producto-manual" placeholder="O ingresa el nombre aquí si no está en la lista..." style="margin-top: -5px;">
-
-            <button onclick="agregarMovimiento()">Agregar</button>
-            <button id="dev-license-btn" onclick="activarLicenciaAdmin()" title="Activa la licencia permanentemente (Sólo para ti)">🔑 Activar Licencia DEV</button>
-        </section>
+            </div>
+            <div>
+                <label for="monto">Monto ($)</label>
+                <input type="number" id="monto" placeholder="Ej: 1500.50">
+            </div>
+        </div>
         
-        <section id="gestion-productos">
-            <h2>🛒 Gestión de Productos y Categorías</h2>
-            <p>Personaliza tu lista de venta: agrega, modifica o elimina lo que no necesitas del listado general.</p>
-            
-            <hr>
-            <h3>Añadir Item</h3>
-            <input type="text" id="nueva-categoria-input" placeholder="Nombre de la nueva categoría (Ej: Frutas)">
-            <button onclick="agregarCategoria()" style="background-color: #007bff; color: white;">Añadir Categoría</button>
-            <input type="text" id="nuevo-producto-nombre" placeholder="Nombre del nuevo producto (Ej: Banana)">
-            <select id="categoria-select-add">
-                <option value="" disabled selected>Selecciona una categoría existente</option>
-            </select>
-            <button onclick="agregarProducto()" style="background-color: #007bff; color: white;">Añadir Producto a Categoría</button>
-            
-            <hr>
-            <h3>Lista Editable</h3>
-            <ul id="lista-categorias">
-                </ul>
-        </section>
-
-
-        <section id="resumen-diario">
-            <h2>Resumen del Día</h2>
-            <p>Ventas: <strong id="total-ventas">$0.00</strong></p>
-            <p>Compras: <strong id="total-compras">$0.00</strong></p>
-            <p>Gastos: <strong id="total-gastos">$0.00</strong></p>
-            <p id="ganancia-dia">Ganancia del Día: <strong id="ganancia-valor">$0.00</strong></p>
-            
-            <button onclick="borrarDatosDia()">Borrar al Cerrar el Día</button>
-            <p class="delete-info">⚠️ Si desea conservar los resultados, exporte los datos antes de borrar.</p>
-
-            <button onclick="exportarResumen()">Exportar Resumen (CSV)</button>
-        </section>
-
-        <section id="historico">
-            <h2>Detalle de Movimientos</h2>
-            <ul id="lista-movimientos"></ul>
-            <hr>
-            <h3>Productos más Vendidos (Cantidad Hoy)</h3> 
-            <ul id="lista-top-productos"></ul>
-        </section>
-
-        <section id="suscripcion">
-            <h2>Suscripción ( $100 / mes )</h2>
-            <p>Controla tu negocio, alivia tu mente.</p>
-            
-            <a href="[Tu Link de Pago Aquí]" target="_blank" class="pay-button" id="pay-button">Pagar Suscripción Ahora ($100/mes)</a>
-            <button onclick="pedirCodigoActivacion()" class="pay-button" style="background-color: var(--color-primary); color: white; border: none; margin-top: 5px;">
-                Ingresar Código de Activación
-            </button>
-        </section>
+        <div class="form-group">
+            <label for="producto-select">Producto de Listado</label>
+            <select id="producto-select">
+                </select>
+        </div>
         
-        <section id="admin-panel">
-            <h2>🔧 Panel de Control (ADMIN)</h2>
-            <hr>
-            <h3>Activación Remota</h3>
-            <p>1. Ingresa el ID de Cliente que te envió. 2. Genera el código y envíaselo al cliente.</p>
-            
-            <input type="text" id="cliente-id-input" placeholder="ID de Cliente (Ej: 1A3B-C4D5)" style="width: 100%; margin-bottom: 10px;">
-            <button onclick="generarCodigoActivacion()" style="background-color: orange; color: black; border: none; padding: 10px; width: 100%; font-weight: bold; cursor: pointer; margin-bottom: 10px;">
-                Generar y Copiar Código de Activación
-            </button>
-            <p>El Código generado es:</p>
-            <input type="text" id="codigo-generado-display" readonly style="width: 100%; color: var(--color-success); font-weight: bold;">
-        </section>
-    </main>
-
-    <footer>
-        <p style="text-align: center; font-size: 0.8em; color: #6c757d; padding: 10px;">&copy; 2024 Mi Caja. Tus datos se guardan solo en tu navegador.</p>
-    </footer>
-
-    <script>
-        // --- LÓGICA DE LA APLICACIÓN (JAVASCRIPT) ---
+        <div class="form-group">
+            <label for="producto-manual">O Descripción Manual (Si no está en el listado)</label>
+            <input type="text" id="producto-manual" placeholder="Ej: Servicio de Luz">
+        </div>
         
-        // CLAVES IMPORTANTES
-        const STORAGE_KEY = 'miCaja_movimientos';
-        const SUBSCRIPTION_KEY = 'miCaja_subscripcion';
-        const CLIENT_ID_KEY = 'miCaja_client_id'; 
-        const PRODUCTOS_KEY = 'miCaja_productos_extensos'; // CLAVE para la lista editable
-        const GRACE_PERIOD_MS = 24 * 60 * 60 * 1000;
-        const SUB_DURATION_MS = 30 * 24 * 60 * 60 * 1000;
-        const ADMIN_KEY = 'miCaja_admin_license';
-        const ADMIN_UNLOCK_PHRASE = 'desarrollador-maestro'; 
-        
-        // --- BASE DE DATOS EXTENSA INICIAL (USADA SOLO LA PRIMERA VEZ) ---
-        const PRODUCTOS_INICIALES = {
-            "Abarrotes y Despensa": [
-                "Aceite Comestible", "Arroz Blanco", "Atún en Lata", "Azúcar", "Café Molido", 
-                "Caldos y Sazonadores", "Fideos (Pasta Seca)", "Harina de Trigo", "Lentejas", 
-                "Mermelada", "Pan Rallado", "Sal Común", "Sopa Instantánea", "Yerba Mate"
-            ],
-            "Lácteos y Refrigerados": [
-                "Crema de Leche", "Huevo (Docena)", "Leche Entera", "Mantequilla", "Margarina", 
-                "Queso Cremoso", "Queso Rallado", "Yogur Bebible", "Yogur en Pote"
-            ],
-            "Bebidas y Jugos": [
-                "Agua Mineral (Botella)", "Bebida Isotónica", "Cerveza (Lata)", "Gaseosa (1.5L)", 
-                "Gaseosa (2.25L)", "Jugo en Polvo", "Jugo Listo (Cartón)", "Vino (Tinto/Blanco)"
-            ],
-            "Limpieza y Hogar": [
-                "Detergente Lavaplatos", "Detergente Ropa", "Lavandina/Cloro", "Limpiador de Pisos", 
-                "Papel Higiénico", "Servilletas", "Trapo de Piso", "Bolsa de Residuos"
-            ],
-            "Snacks y Golosinas": [
-                "Almendras (Bolsa)", "Chicle", "Chocolate", "Galletas Dulces", "Maní Tostado", 
-                "Papas Fritas (Bolsa)", "Caramelos", "Barra de Cereal"
-            ],
-            "Panadería y Repostería": [
-                "Bizcochos", "Facturas (Unidad)", "Medialunas", "Pan de Molde", "Pan Francés (Kilo)",
-                "Tarta (Porción)"
-            ]
-        };
-        
-        // --- FUNCIONES DE ALMACENAMIENTO DE PRODUCTOS ---
+        <button onclick="agregarMovimiento()">Registrar Movimiento</button>
+    </div>
 
-        function obtenerProductos() {
-            const productosGuardados = localStorage.getItem(PRODUCTOS_KEY);
-            if (productosGuardados) {
-                return JSON.parse(productosGuardados);
-            }
-            // Si no hay productos guardados, inicializa con la lista extensa y la guarda
-            localStorage.setItem(PRODUCTOS_KEY, JSON.stringify(PRODUCTOS_INICIALES));
-            return PRODUCTOS_INICIALES;
+    <div class="card">
+        <h2>Resumen del Día</h2>
+        <div class="summary-grid">
+            <div class="summary-box ventas">
+                Ventas
+                <span id="total-ventas">$0.00</span>
+            </div>
+            <div class="summary-box compras">
+                Compras
+                <span id="total-compras">$0.00</span>
+            </div>
+            <div class="summary-box gastos">
+                Gastos
+                <span id="total-gastos">$0.00</span>
+            </div>
+            <div class="summary-box ganancia">
+                Ganancia Neta
+                <span id="ganancia-valor" style="color: var(--color-success);">$0.00</span>
+            </div>
+        </div>
+    </div>
+    
+    <div class="card">
+        <div class="two-columns">
+            <div>
+                <h3>Últimos Movimientos de Hoy</h3>
+                <ul id="lista-movimientos">
+                    </ul>
+            </div>
+            <div>
+                <h3>Top 5 Productos (Ventas)</h3>
+                <ul id="lista-top-productos">
+                    </ul>
+            </div>
+        </div>
+        
+        <div id="data-tools" style="margin-top: 20px;">
+            <button id="export-btn" onclick="exportarResumen()" style="background-color: var(--color-secondary);">Exportar Resumen CSV</button>
+            <button onclick="borrarDatosDia()" style="background-color: var(--color-danger);">Borrar Movimientos del Día</button>
+        </div>
+    </div>
+
+</div> <script>
+    // --- LÓGICA DE LA APLICACIÓN (JAVASCRIPT) ---
+    
+    // CLAVES IMPORTANTES
+    const STORAGE_KEY = 'miCaja_movimientos';
+    const SUBSCRIPTION_KEY = 'miCaja_subscripcion';
+    const CLIENT_ID_KEY = 'miCaja_client_id'; 
+    const PRODUCTOS_KEY = 'miCaja_productos_extensos'; // CLAVE para la lista editable
+    const GRACE_PERIOD_MS = 24 * 60 * 60 * 1000;
+    const SUB_DURATION_MS = 30 * 24 * 60 * 60 * 1000;
+    const ADMIN_KEY = 'miCaja_admin_license';
+    const ADMIN_UNLOCK_PHRASE = 'desarrollador-maestro'; // <<--- ESTA ES LA CLAVE SECRETA EXCLUSIVA
+    
+    // --- BASE DE DATOS EXTENSA INICIAL (USADA SOLO LA PRIMERA VEZ) ---
+    const PRODUCTOS_INICIALES = {
+        "Abarrotes y Despensa": [
+            "Aceite Comestible", "Arroz Blanco", "Atún en Lata", "Azúcar", "Café Molido", 
+            "Caldos y Sazonadores", "Fideos (Pasta Seca)", "Harina de Trigo", "Lentejas", 
+            "Mermelada", "Pan Rallado", "Sal Común", "Sopa Instantánea", "Yerba Mate"
+        ],
+        "Lácteos y Refrigerados": [
+            "Crema de Leche", "Huevo (Docena)", "Leche Entera", "Mantequilla", "Margarina", 
+            "Queso Cremoso", "Queso Rallado", "Yogur Bebible", "Yogur en Pote"
+        ],
+        "Bebidas y Jugos": [
+            "Agua Mineral (Botella)", "Bebida Isotónica", "Cerveza (Lata)", "Gaseosa (1.5L)", 
+            "Gaseosa (2.25L)", "Jugo en Polvo", "Jugo Listo (Cartón)", "Vino (Tinto/Blanco)"
+        ],
+        "Limpieza y Hogar": [
+            "Detergente Lavaplatos", "Detergente Ropa", "Lavandina/Cloro", "Limpiador de Pisos", 
+            "Papel Higiénico", "Servilletas", "Trapo de Piso", "Bolsa de Residuos"
+        ],
+        "Snacks y Golosinas": [
+            "Almendras (Bolsa)", "Chicle", "Chocolate", "Galletas Dulces", "Maní Tostado", 
+            "Papas Fritas (Bolsa)", "Caramelos", "Barra de Cereal"
+        ],
+        "Panadería y Repostería": [
+            "Bizcochos", "Facturas (Unidad)", "Medialunas", "Pan de Molde", "Pan Francés (Kilo)",
+            "Tarta (Porción)"
+        ]
+    };
+    
+    // --- FUNCIONES DE ALMACENAMIENTO DE PRODUCTOS ---
+    function obtenerProductos() {
+        const productosGuardados = localStorage.getItem(PRODUCTOS_KEY);
+        if (productosGuardados) {
+            return JSON.parse(productosGuardados);
+        }
+        localStorage.setItem(PRODUCTOS_KEY, JSON.stringify(PRODUCTOS_INICIALES));
+        return PRODUCTOS_INICIALES;
+    }
+
+    function guardarProductos(productos) {
+        localStorage.setItem(PRODUCTOS_KEY, JSON.stringify(productos));
+        cargarSelectProductos(); 
+        cargarEditorProductos(); 
+    }
+
+    // --- FUNCIONES DEL EDITOR DE PRODUCTOS (GESTIÓN) ---
+    function agregarCategoria() {
+        const input = document.getElementById('nueva-categoria-input');
+        const nombre = input.value.trim();
+        if (!nombre) {
+            alert("El nombre de la categoría no puede estar vacío.");
+            return;
+        }
+        
+        const productos = obtenerProductos();
+        const nombreNormalizado = nombre.charAt(0).toUpperCase() + nombre.slice(1).toLowerCase();
+
+        if (productos.hasOwnProperty(nombreNormalizado)) {
+            alert("Esa categoría ya existe.");
+            return;
+        }
+        
+        productos[nombreNormalizado] = [];
+        guardarProductos(productos);
+        input.value = '';
+    }
+    
+    function eliminarCategoria(nombre) {
+        if (!confirm(`¿Estás seguro de que quieres eliminar la categoría "${nombre}"? ¡Se borrarán todos sus productos!`)) return;
+        const productos = obtenerProductos();
+        delete productos[nombre];
+        guardarProductos(productos);
+    }
+
+    function agregarProducto() {
+        const nombreInput = document.getElementById('nuevo-producto-nombre');
+        const categoriaSelect = document.getElementById('categoria-select-add');
+        
+        const nombre = nombreInput.value.trim();
+        const categoria = categoriaSelect.value;
+        
+        if (!nombre) {
+            alert("El nombre del producto no puede estar vacío.");
+            return;
+        }
+        if (!categoria) {
+            alert("Debes seleccionar una categoría.");
+            return;
+        }
+        
+        const productos = obtenerProductos();
+        const nombreNormalizado = nombre.charAt(0).toUpperCase() + nombre.slice(1);
+        
+        if (productos[categoria].includes(nombreNormalizado)) {
+            alert("Ese producto ya existe en esta categoría.");
+            return;
         }
 
-        function guardarProductos(productos) {
-            localStorage.setItem(PRODUCTOS_KEY, JSON.stringify(productos));
-            cargarSelectProductos(); // Recarga el select principal
-            cargarEditorProductos(); // Recarga el panel del editor
-        }
+        productos[categoria].push(nombreNormalizado);
+        productos[categoria].sort();
+        guardarProductos(productos);
+        
+        nombreInput.value = '';
+    }
+    
+    function eliminarProducto(categoria, nombre) {
+        if (!confirm(`¿Estás seguro de que quieres eliminar "${nombre}"?`)) return;
 
-
-        // --- FUNCIONES DEL EDITOR DE PRODUCTOS (GESTIÓN) ---
-
-        function agregarCategoria() {
-            const input = document.getElementById('nueva-categoria-input');
-            const nombre = input.value.trim();
-            if (!nombre) {
-                alert("El nombre de la categoría no puede estar vacío.");
-                return;
-            }
-            
-            const productos = obtenerProductos();
-            // Capitalizar la primera letra para consistencia
-            const nombreNormalizado = nombre.charAt(0).toUpperCase() + nombre.slice(1).toLowerCase();
-
-            if (productos.hasOwnProperty(nombreNormalizado)) {
-                alert("Esa categoría ya existe.");
-                return;
-            }
-            
-            productos[nombreNormalizado] = [];
+        const productos = obtenerProductos();
+        if (productos[categoria]) {
+            productos[categoria] = productos[categoria].filter(p => p !== nombre); 
             guardarProductos(productos);
-            input.value = '';
         }
+    }
+
+    function cargarEditorProductos() {
+        const productos = obtenerProductos();
+        const listaEditor = document.getElementById('lista-categorias');
+        const selectAdd = document.getElementById('categoria-select-add');
         
-        function eliminarCategoria(nombre) {
-            if (!confirm(`¿Estás seguro de que quieres eliminar la categoría "${nombre}"? ¡Se borrarán todos sus productos!`)) return;
-
-            const productos = obtenerProductos();
-            delete productos[nombre];
-            guardarProductos(productos);
-        }
-
-        function agregarProducto() {
-            const nombreInput = document.getElementById('nuevo-producto-nombre');
-            const categoriaSelect = document.getElementById('categoria-select-add');
-            
-            const nombre = nombreInput.value.trim();
-            const categoria = categoriaSelect.value;
-            
-            if (!nombre) {
-                alert("El nombre del producto no puede estar vacío.");
-                return;
-            }
-            if (!categoria) {
-                alert("Debes seleccionar una categoría.");
-                return;
-            }
-            
-            const productos = obtenerProductos();
-            // Capitalizar solo la primera letra del producto para consistencia
-            const nombreNormalizado = nombre.charAt(0).toUpperCase() + nombre.slice(1);
-            
-            // Evitar duplicados
-            if (productos[categoria].includes(nombreNormalizado)) {
-                alert("Ese producto ya existe en esta categoría.");
-                return;
-            }
-
-            productos[categoria].push(nombreNormalizado);
-            productos[categoria].sort(); // Ordenar alfabéticamente
-            guardarProductos(productos);
-            
-            nombreInput.value = '';
-        }
+        listaEditor.innerHTML = '';
+        selectAdd.innerHTML = '<option value="" disabled selected>Selecciona una categoría existente</option>';
         
-        function eliminarProducto(categoria, nombre) {
-            if (!confirm(`¿Estás seguro de que quieres eliminar "${nombre}"?`)) return;
+        const categoriasOrdenadas = Object.keys(productos).sort();
 
-            const productos = obtenerProductos();
-            if (productos[categoria]) {
-                // Filtra el array, manteniendo solo los productos que NO coinciden con el nombre
-                productos[categoria] = products[categoria].filter(p => p !== nombre); 
-                guardarProductos(productos);
-            }
-        }
-
-
-        function cargarEditorProductos() {
-            const productos = obtenerProductos();
-            const listaEditor = document.getElementById('lista-categorias');
-            const selectAdd = document.getElementById('categoria-select-add');
+        categoriasOrdenadas.forEach(categoria => {
+            const option = document.createElement('option');
+            option.value = categoria;
+            option.textContent = categoria;
+            selectAdd.appendChild(option);
             
-            listaEditor.innerHTML = '';
-            selectAdd.innerHTML = '<option value="" disabled selected>Selecciona una categoría existente</option>';
+            const catLi = document.createElement('li');
+            catLi.className = 'categoria-item';
+            catLi.innerHTML = `
+                <span>${categoria}</span>
+                <button class="btn-cat-del" onclick="eliminarCategoria('${categoria.replace(/'/g, "\\'")}')">Eliminar Cat.</button>
+            `;
+            listaEditor.appendChild(catLi);
             
-            const categoriasOrdenadas = Object.keys(productos).sort();
+            productos[categoria].forEach(producto => {
+                const prodLi = document.createElement('li');
+                prodLi.className = 'producto-item';
+                prodLi.innerHTML = `
+                    <span>${producto}</span>
+                    <button class="btn-producto-del" onclick="eliminarProducto('${categoria.replace(/'/g, "\\'")}', '${producto.replace(/'/g, "\\'")}')">🗑️</button>
+                `;
+                listaEditor.appendChild(prodLi);
+            });
+        });
+        if (selectAdd.options.length > 1) {
+             selectAdd.selectedIndex = 1;
+        } 
+    }
+    
 
-            categoriasOrdenadas.forEach(categoria => {
-                // 1. Cargar el Select de adición
+    // --- FUNCIONES DE CARGA Y NORMALIZACIÓN ---
+
+    function cargarSelectProductos() {
+        const productos = obtenerProductos();
+        const selectElement = document.getElementById('producto-select');
+        
+        selectElement.innerHTML = '<option value="" disabled selected>Selecciona un producto del listado...</option>'; 
+        
+        const categoriasOrdenadas = Object.keys(productos).sort();
+        
+        categoriasOrdenadas.forEach(categoria => {
+            const optgroup = document.createElement('optgroup');
+            optgroup.label = categoria;
+            
+            productos[categoria].forEach(producto => {
                 const option = document.createElement('option');
-                option.value = categoria;
-                option.textContent = categoria;
-                selectAdd.appendChild(option);
-                
-                // 2. Cargar la lista de edición
-                const catLi = document.createElement('li');
-                catLi.className = 'categoria-item';
-                // La función eliminarCategoria necesita el nombre de la categoría
-                catLi.innerHTML = `
-                    <span>${categoria}</span>
-                    <button class="btn-cat-del" onclick="eliminarCategoria('${categoria.replace(/'/g, "\\'")}')">Eliminar Cat.</button>
-                `;
-                listaEditor.appendChild(catLi);
-                
-                // Productos dentro de la categoría
-                productos[categoria].forEach(producto => {
-                    const prodLi = document.createElement('li');
-                    prodLi.className = 'producto-item';
-                    // La función eliminarProducto necesita la categoría y el nombre del producto
-                    prodLi.innerHTML = `
-                        <span>${producto}</span>
-                        <button class="btn-producto-del" onclick="eliminarProducto('${categoria.replace(/'/g, "\\'")}', '${producto.replace(/'/g, "\\'")}')">🗑️</button>
-                    `;
-                    listaEditor.appendChild(prodLi);
-                });
+                option.value = producto;
+                option.textContent = producto;
+                optgroup.appendChild(option);
             });
-            // Si hay categorías, selecciona la primera por defecto en el select de adición
-            if (selectAdd.options.length > 1) { // 1 es la opción disabled
-                 selectAdd.selectedIndex = 1;
-            } 
+            selectElement.appendChild(optgroup);
+        });
+    }
+    
+    const removerAcentos = (str) => {
+        return str.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+    };
+
+    function normalizarProducto(producto) {
+        if (!producto) return '';
+        
+        let limpio = producto.toLowerCase().trim();
+        limpio = removerAcentos(limpio).replace(/[^a-z0-9\s]/g, '');
+        
+        // --- MAPEO MANUAL REFORZADO (Asegura consistencia) ---
+        
+        if (limpio.includes('azucar') || limpio.includes('asucar')) return 'Azúcar'; 
+        if (limpio.includes('leche') || limpio.includes('lecche') || limpio.includes('lechhes')) return 'Leche Entera'; 
+        if (limpio.includes('pan') || limpio.includes('panes')) return 'Pan Francés (Kilo)'; 
+        if (limpio.includes('gaseosa') || limpio.includes('coca') || limpio.includes('pepsi')) return 'Gaseosa (2.25L)'; 
+        if (limpio.includes('fideo') || limpio.includes('tallarin') || limpio.includes('pastas')) return 'Fideos (Pasta Seca)'; 
+        if (limpio.includes('arroz') || limpio.includes('arros')) return 'Arroz Blanco'; 
+        if (limpio.includes('proveedor') || limpio.includes('probeor') || limpio.includes('probeor1') || limpio.includes('proveedor1')) return 'Proveedor'; 
+        if (limpio.includes('tarte')) return 'Tarta (Porción)'; 
+
+        let productoLimpio = producto.trim().toLowerCase();
+        return productoLimpio.charAt(0).toUpperCase() + productoLimpio.slice(1);
+    }
+
+    // --- GESTIÓN DE CAJA ---
+    function obtenerMovimientos() { 
+        const movimientos = localStorage.getItem(STORAGE_KEY);
+        return movimientos ? JSON.parse(movimientos) : [];
+    }
+
+    function guardarMovimientos(movimientos) {
+         localStorage.setItem(STORAGE_KEY, JSON.stringify(movimientos));
+         renderizarResumen();
+    }
+
+    function agregarMovimiento() {
+        if (document.body.classList.contains('app-blocked')) {
+            alert("La aplicación está suspendida. Por favor, renueva tu suscripción para continuar.");
+            return;
         }
         
+        const tipo = document.getElementById('tipo-movimiento').value;
+        const monto = parseFloat(document.getElementById('monto').value);
+        
+        const productoSelect = document.getElementById('producto-select').value;
+        const productoManual = document.getElementById('producto-manual').value;
+        
+        let productoBase = productoSelect || productoManual;
 
-        // --- FUNCIONES DE CARGA Y NORMALIZACIÓN ---
-
-        function cargarSelectProductos() {
-            const productos = obtenerProductos();
-            const selectElement = document.getElementById('producto-select');
-            
-            // Limpia y añade la opción por defecto
-            selectElement.innerHTML = '<option value="" disabled selected>Selecciona un producto del listado...</option>'; 
-            
-            const categoriasOrdenadas = Object.keys(productos).sort();
-            
-            categoriasOrdenadas.forEach(categoria => {
-                const optgroup = document.createElement('optgroup');
-                optgroup.label = categoria;
-                
-                // Los productos ya están ordenados por la función guardarProductos
-                productos[categoria].forEach(producto => {
-                    const option = document.createElement('option');
-                    option.value = producto;
-                    option.textContent = producto;
-                    optgroup.appendChild(option);
-                });
-                selectElement.appendChild(optgroup);
-            });
+        if (isNaN(monto) || monto <= 0) {
+             alert("Por favor, ingresa un monto válido y mayor a cero.");
+             return;
         }
         
-        const removerAcentos = (str) => {
-            return str.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+        if (!productoBase) {
+             alert("Por favor, selecciona un producto del listado o ingresa una descripción manual.");
+             return;
+        }
+        
+        const productoFinal = productoSelect ? productoBase : normalizarProducto(productoBase);
+
+
+        const hoy = new Date().toLocaleDateString('es-AR', { timeZone: 'America/Argentina/Buenos_Aires' });
+        const nuevoMovimiento = {
+            id: Date.now(), 
+            fecha: hoy,
+            tipo: tipo,
+            monto: monto,
+            producto: productoFinal, 
+            timestamp: Date.now()
         };
 
-        // Función normalizarProducto: Para autocorrección en el input manual y consistencia.
-        function normalizarProducto(producto) {
-            if (!producto) return '';
-            
-            let limpio = producto.toLowerCase().trim();
-            limpio = removerAcentos(limpio).replace(/[^a-z0-9\s]/g, '');
-            
-            // --- MAPEO MANUAL REFORZADO (Asegura consistencia) ---
-            // Estos mapeos sirven para corregir errores ortográficos en el ingreso manual.
-            
-            if (limpio.includes('azucar') || limpio.includes('asucar')) return 'Azúcar'; 
-            if (limpio.includes('leche') || limpio.includes('lecche') || limpio.includes('lechhes')) return 'Leche Entera'; 
-            if (limpio.includes('pan') || limpio.includes('panes')) return 'Pan Francés (Kilo)'; 
-            if (limpio.includes('gaseosa') || limpio.includes('coca') || limpio.includes('pepsi')) return 'Gaseosa (2.25L)'; 
-            if (limpio.includes('fideo') || limpio.includes('tallarin') || limpio.includes('pastas')) return 'Fideos (Pasta Seca)'; 
-            if (limpio.includes('arroz') || limpio.includes('arros')) return 'Arroz Blanco'; 
-            if (limpio.includes('proveedor') || limpio.includes('probeor') || limpio.includes('probeor1') || limpio.includes('proveedor1')) return 'Proveedor'; 
-            if (limpio.includes('tarte')) return 'Tarta (Porción)'; 
+        const movimientos = obtenerMovimientos();
+        movimientos.push(nuevoMovimiento);
+        guardarMovimientos(movimientos);
 
-            // Si no está mapeado, se limpia y se capitaliza solo la primera letra.
-            let productoLimpio = producto.trim().toLowerCase();
-            // Importante: Esto no reemplaza a los productos de la lista generada, pero intenta normalizar el ingreso manual.
-            return productoLimpio.charAt(0).toUpperCase() + productoLimpio.slice(1);
-        }
+        document.getElementById('monto').value = '';
+        document.getElementById('producto-select').value = ''; 
+        document.getElementById('producto-manual').value = ''; 
+    }
 
-        // --- GESTIÓN DE CAJA (Mínimos cambios para usar normalizarProducto) ---
+    function eliminarMovimiento(id) {
+        const movimientos = obtenerMovimientos();
+        const movimientosFiltrados = movimientos.filter(mov => mov.id !== id);
+        guardarMovimientos(movimientosFiltrados);
+    }
+
+    function renderizarResumen() { 
+        const movimientos = obtenerMovimientos();
+        const hoy = new Date().toLocaleDateString('es-AR', { timeZone: 'America/Argentina/Buenos_Aires' });
+        const movimientosDia = movimientos.filter(mov => mov.fecha === hoy);
+
+        let totalVentas = 0;
+        let totalCompras = 0;
+        let totalGastos = 0;
+        const productosContador = {}; 
+
+        movimientosDia.forEach(mov => {
+            const productoConsistente = normalizarProducto(mov.producto); 
+
+            if (mov.tipo === 'venta') {
+                totalVentas += mov.monto;
+                productosContador[productoConsistente] = (productosContador[productoConsistente] || 0) + 1; 
+            } else if (mov.tipo === 'compra') {
+                totalCompras += mov.monto;
+            } else if (mov.tipo === 'gasto') {
+                totalGastos += mov.monto;
+            }
+        });
+
+        const totalEgresos = totalCompras + totalGastos;
+        const gananciaDia = totalVentas - totalEgresos;
+
+        document.getElementById('total-ventas').textContent = `$${totalVentas.toFixed(2)}`;
+        document.getElementById('total-compras').textContent = `$${totalCompras.toFixed(2)}`;
+        document.getElementById('total-gastos').textContent = `$${totalGastos.toFixed(2)}`;
         
-        function obtenerMovimientos() { 
-            const movimientos = localStorage.getItem(STORAGE_KEY);
-            return movimientos ? JSON.parse(movimientos) : [];
-        }
+        const gananciaElement = document.getElementById('ganancia-valor');
+        gananciaElement.textContent = `$${gananciaDia.toFixed(2)}`;
+        gananciaElement.style.color = gananciaDia >= 0 ? 'var(--color-success)' : 'var(--color-danger)';
 
-        function guardarMovimientos(movimientos) {
-             localStorage.setItem(STORAGE_KEY, JSON.stringify(movimientos));
-             renderizarResumen();
-        }
-
-        function agregarMovimiento() {
-            // Verificar bloqueo por suscripción para la funcionalidad principal
-            if (document.body.classList.contains('app-blocked')) {
-                alert("La aplicación está suspendida. Por favor, renueva tu suscripción para continuar.");
-                return;
-            }
+        // --- DETALLE DE MOVIMIENTOS ---
+        const listaMov = document.getElementById('lista-movimientos');
+        listaMov.innerHTML = '';
+        movimientosDia.sort((a, b) => b.timestamp - a.timestamp).forEach(mov => {
+            const li = document.createElement('li');
+            const signo = mov.tipo === 'venta' ? '+' : '-';
+            const claseMonto = mov.tipo === 'venta' ? 'monto-venta' : 'monto-gasto';
             
-            const tipo = document.getElementById('tipo-movimiento').value;
-            const monto = parseFloat(document.getElementById('monto').value);
-            
-            const productoSelect = document.getElementById('producto-select').value;
-            const productoManual = document.getElementById('producto-manual').value;
-            
-            let productoBase = productoSelect || productoManual;
-
-            if (isNaN(monto) || monto <= 0) {
-                 alert("Por favor, ingresa un monto válido y mayor a cero.");
-                 return;
-            }
-            
-            if (!productoBase) {
-                 alert("Por favor, selecciona un producto del listado o ingresa una descripción manual.");
-                 return;
-            }
-            
-            // Si viene del select, se usa tal cual. Si es manual, se normaliza para consistencia en el histórico.
-            const productoFinal = productoSelect ? productoBase : normalizarProducto(productoBase);
+            const productoParaMostrar = normalizarProducto(mov.producto); 
+            const tipoEtiqueta = (mov.tipo === 'compra') ? 'compra' : (mov.tipo === 'gasto' ? 'gasto' : 'venta');
 
 
-            const hoy = new Date().toLocaleDateString('es-AR', { timeZone: 'America/Argentina/Buenos_Aires' });
-            const nuevoMovimiento = {
-                id: Date.now(), 
-                fecha: hoy,
-                tipo: tipo,
-                monto: monto,
-                producto: productoFinal, 
-                timestamp: Date.now()
-            };
+            li.innerHTML = `
+                <span>${productoParaMostrar} (${tipoEtiqueta})</span>
+                <span class="${claseMonto}">${signo} $${mov.monto.toFixed(2)}</span>
+                <button class="delete-btn" onclick="eliminarMovimiento(${mov.id})">🗑️</button>
+            `;
+            listaMov.appendChild(li);
+        });
+        
+        // --- TOP PRODUCTOS ---
+        const topProductosList = document.getElementById('lista-top-productos');
+        topProductosList.innerHTML = '';
+        
+        const sortedProductos = Object.entries(productosContador)
+            .sort(([, a], [, b]) => b - a) 
+            .slice(0, 5);
 
-            const movimientos = obtenerMovimientos();
-            movimientos.push(nuevoMovimiento);
-            guardarMovimientos(movimientos);
-
-            document.getElementById('monto').value = '';
-            document.getElementById('producto-select').value = ''; 
-            document.getElementById('producto-manual').value = ''; 
-        }
-
-        function eliminarMovimiento(id) {
-            const movimientos = obtenerMovimientos();
-            const movimientosFiltrados = movimientos.filter(mov => mov.id !== id);
-            guardarMovimientos(movimientosFiltrados);
-        }
-
-        function renderizarResumen() { 
-            const movimientos = obtenerMovimientos();
-            const hoy = new Date().toLocaleDateString('es-AR', { timeZone: 'America/Argentina/Buenos_Aires' });
-            const movimientosDia = movimientos.filter(mov => mov.fecha === hoy);
-
-            let totalVentas = 0;
-            let totalCompras = 0;
-            let totalGastos = 0;
-            const productosContador = {}; 
-
-            movimientosDia.forEach(mov => {
-                // Normaliza el producto para contarlo correctamente, incluso si fue ingresado manualmente con error.
-                const productoConsistente = normalizarProducto(mov.producto); 
-
-                if (mov.tipo === 'venta') {
-                    totalVentas += mov.monto;
-                    // Solo contamos ventas para el top 5
-                    productosContador[productoConsistente] = (productosContador[productoConsistente] || 0) + 1; 
-                } else if (mov.tipo === 'compra') {
-                    totalCompras += mov.monto;
-                } else if (mov.tipo === 'gasto') {
-                    totalGastos += mov.monto;
-                }
-            });
-
-            const totalEgresos = totalCompras + totalGastos;
-            const gananciaDia = totalVentas - totalEgresos;
-
-            document.getElementById('total-ventas').textContent = `$${totalVentas.toFixed(2)}`;
-            document.getElementById('total-compras').textContent = `$${totalCompras.toFixed(2)}`;
-            document.getElementById('total-gastos').textContent = `$${totalGastos.toFixed(2)}`;
-            
-            const gananciaElement = document.getElementById('ganancia-valor');
-            gananciaElement.textContent = `$${gananciaDia.toFixed(2)}`;
-            gananciaElement.style.color = gananciaDia >= 0 ? 'var(--color-success)' : 'var(--color-danger)';
-
-            // --- DETALLE DE MOVIMIENTOS ---
-            const listaMov = document.getElementById('lista-movimientos');
-            listaMov.innerHTML = '';
-            // Muestra los movimientos del día, del más reciente al más antiguo
-            movimientosDia.sort((a, b) => b.timestamp - a.timestamp).forEach(mov => {
+        if (sortedProductos.length === 0) {
+             topProductosList.innerHTML = '<li>Aún no hay ventas registradas hoy.</li>';
+        } else {
+            sortedProductos.forEach(([producto, cantidad]) => {
                 const li = document.createElement('li');
-                const signo = mov.tipo === 'venta' ? '+' : '-';
-                const claseMonto = mov.tipo === 'venta' ? 'monto-venta' : 'monto-gasto';
-                
-                const productoParaMostrar = normalizarProducto(mov.producto); 
-                const tipoEtiqueta = (mov.tipo === 'compra') ? 'compra' : (mov.tipo === 'gasto' ? 'gasto' : 'venta');
-
-
-                li.innerHTML = `
-                    <span>${productoParaMostrar} (${tipoEtiqueta})</span>
-                    <span class="${claseMonto}">${signo} $${mov.monto.toFixed(2)}</span>
-                    <button class="delete-btn" onclick="eliminarMovimiento(${mov.id})">🗑️</button>
-                `;
-                listaMov.appendChild(li);
+                li.innerHTML = `<strong>${producto}</strong>: ${cantidad} ventas`;
+                topProductosList.appendChild(li);
             });
-            
-            // --- TOP PRODUCTOS ---
-            const topProductosList = document.getElementById('lista-top-productos');
-            topProductosList.innerHTML = '';
-            
-            const sortedProductos = Object.entries(productosContador)
-                .sort(([, a], [, b]) => b - a) 
-                .slice(0, 5);
-
-            if (sortedProductos.length === 0) {
-                 topProductosList.innerHTML = '<li>Aún no hay ventas registradas hoy.</li>';
-            } else {
-                sortedProductos.forEach(([producto, cantidad]) => {
-                    const li = document.createElement('li');
-                    li.innerHTML = `<strong>${producto}</strong>: ${cantidad} ventas`;
-                    topProductosList.appendChild(li);
-                });
-            }
-           }
-
-        function borrarDatosDia() { 
-            const hoy = new Date().toLocaleDateString('es-AR', { timeZone: 'America/Argentina/Buenos_Aires' });
-            
-            if (!confirm(`¡ATENCIÓN! ¿Estás seguro de que quieres BORRAR TODOS los movimientos de HOY (${hoy})? Esta acción es irreversible. Recuerda exportar si quieres conservar el registro.`)) {
-                return;
-            }
-            
-            const movimientos = obtenerMovimientos();
-            // Filtra solo los movimientos que NO son de hoy
-            const movimientosRestantes = movimientos.filter(mov => mov.fecha !== hoy);
-            
-            guardarMovimientos(movimientosRestantes);
-            alert("Los movimientos del día han sido borrados con éxito. Se mantiene el histórico de otros días.");
-           }
-
-        function exportarResumen() { 
-            const movimientos = obtenerMovimientos();
-            const hoy = new Date().toLocaleDateString('es-AR', { timeZone: 'America/Argentina/Buenos_Aires' });
-            const movimientosDia = movimientos.filter(mov => mov.fecha === hoy);
-            
-            if (movimientosDia.length === 0) {
-                alert("No hay datos del día para exportar.");
-                return;
-            }
-
-            // Encabezado CSV: Usa ';' como separador si el excel local usa coma para decimales
-            let csvContent = "data:text/csv;charset=utf-8,Tipo;Monto;Producto;Fecha\n";
-
-            movimientosDia.forEach(mov => {
-                // Reemplaza comas en el producto por espacio para no romper el formato CSV
-                const cleanProduct = normalizarProducto(mov.producto).replace(/,/g, ' '); 
-                // Usa toFixed(2).replace('.', ',') para forzar la coma como decimal en el CSV
-                const montoLocal = mov.monto.toFixed(2).replace('.', ','); 
-                const row = [mov.tipo, montoLocal, cleanProduct, mov.fecha].join(';');
-                csvContent += row + "\n";
-            });
-
-            const encodedUri = encodeURI(csvContent);
-            const link = document.createElement("a");
-            link.setAttribute("href", encodedUri);
-            link.setAttribute("download", `resumen_caja_${hoy.replace(/\//g, '-')}.csv`);
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-            alert("Resumen del día exportado con éxito.");
         }
+       }
 
-
-        // --- GESTIÓN DE LICENCIA (Suscripción y Admin) ---
-
-        function generarClientID() {
-            let id = localStorage.getItem(CLIENT_ID_KEY);
-            if (!id) {
-                // Genera un ID simple de 8 caracteres
-                const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-                let newId = '';
-                for (let i = 0; i < 4; i++) newId += chars.charAt(Math.floor(Math.random() * chars.length));
-                newId += '-';
-                for (let i = 0; i < 4; i++) newId += chars.charAt(Math.floor(Math.random() * chars.length));
-                id = newId;
-                localStorage.setItem(CLIENT_ID_KEY, id);
-            }
-            document.getElementById('client-id-display').textContent = id;
-            return id;
-        }
-
-        function generarCodigoActivacion() {
-            const clienteIdInput = document.getElementById('cliente-id-input').value.toUpperCase().trim();
-            if (clienteIdInput.length !== 9 || clienteIdInput.indexOf('-') !== 4) {
-                alert("ID de Cliente inválido. Debe tener el formato XXXX-XXXX.");
-                return;
-            }
-
-            const cleanId = clienteIdInput.replace(/-/g, '');
-            let codigoGenerado = '';
-            for (let i = 0; i < cleanId.length; i++) {
-                // Aplica una lógica simple de desplazamiento para generar el código
-                const charCode = cleanId.charCodeAt(i);
-                const newCharCode = charCode + (i % 3) + 1; // Un desplazamiento simple
-                codigoGenerado += String.fromCharCode(newCharCode);
-            }
-            
-            // Inyecta un separador simple
-            codigoGenerado = codigoGenerado.slice(0, 4) + 'X' + codigoGenerado.slice(4);
-            
-            const display = document.getElementById('codigo-generado-display');
-            display.value = codigoGenerado;
-
-            // Copiar al portapapeles
-            display.select();
-            document.execCommand('copy');
-            alert(`Código de Activación generado y copiado: ${codigoGenerado}`);
+    function borrarDatosDia() { 
+        const hoy = new Date().toLocaleDateString('es-AR', { timeZone: 'America/Argentina/Buenos_Aires' });
+        
+        if (!confirm(`¡ATENCIÓN! ¿Estás seguro de que quieres BORRAR TODOS los movimientos de HOY (${hoy})? Esta acción es irreversible. Recuerda exportar si quieres conservar el registro.`)) {
+            return;
         }
         
-        function pedirCodigoActivacion() {
-            const codigo = prompt("Ingresa el Código de Activación que te proporcionaron:");
-            if (codigo) {
-                // Aquí el código DEBE hacer la verificación inversa. 
-                // Por simplicidad, se realiza una verificación básica.
-                const codigoLimpio = codigo.toUpperCase().trim();
-                
-                // Lógica de verificación: intenta "deshacer" la generación
-                const expectedCode = generarCodigoActivacionDesdeID(generarClientID());
-                
-                if (codigoLimpio === expectedCode) {
-                    activarSuscripcion();
-                    alert("¡Suscripción activada con éxito! La aplicación ya está lista para usar.");
-                } else if (codigoLimpio === ADMIN_UNLOCK_PHRASE) {
-                     activarLicenciaAdmin();
-                } else {
-                    alert("Código de activación inválido o incorrecto.");
-                }
+        const movimientos = obtenerMovimientos();
+        const movimientosRestantes = movimientos.filter(mov => mov.fecha !== hoy);
+        
+        guardarMovimientos(movimientosRestantes);
+        alert("Los movimientos del día han sido borrados con éxito. Se mantiene el histórico de otros días.");
+       }
+
+    function exportarResumen() { 
+        const movimientos = obtenerMovimientos();
+        const hoy = new Date().toLocaleDateString('es-AR', { timeZone: 'America/Argentina/Buenos_Aires' });
+        const movimientosDia = movimientos.filter(mov => mov.fecha === hoy);
+        
+        if (movimientosDia.length === 0) {
+            alert("No hay datos del día para exportar.");
+            return;
+        }
+
+        let csvContent = "data:text/csv;charset=utf-8,Tipo;Monto;Producto;Fecha\n";
+
+        movimientosDia.forEach(mov => {
+            const cleanProduct = normalizarProducto(mov.producto).replace(/,/g, ' '); 
+            const montoLocal = mov.monto.toFixed(2).replace('.', ','); 
+            const row = [mov.tipo, montoLocal, cleanProduct, mov.fecha].join(';');
+            csvContent += row + "\n";
+        });
+
+        const encodedUri = encodeURI(csvContent);
+        const link = document.createElement("a");
+        link.setAttribute("href", encodedUri);
+        link.setAttribute("download", `resumen_caja_${hoy.replace(/\//g, '-')}.csv`);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        alert("Resumen del día exportado con éxito.");
+    }
+
+
+    // --- GESTIÓN DE LICENCIA (Suscripción y Admin) ---
+
+    function generarClientID() {
+        let id = localStorage.getItem(CLIENT_ID_KEY);
+        if (!id) {
+            const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+            let newId = '';
+            for (let i = 0; i < 4; i++) newId += chars.charAt(Math.floor(Math.random() * chars.length));
+            newId += '-';
+            for (let i = 0; i < 4; i++) newId += chars.charAt(Math.floor(Math.random() * chars.length));
+            id = newId;
+            localStorage.setItem(CLIENT_ID_KEY, id);
+        }
+        document.getElementById('client-id-display').textContent = id;
+        return id;
+    }
+
+    function generarCodigoActivacionDesdeID(clienteIdInput) {
+         const cleanId = clienteIdInput.replace(/-/g, '');
+         let codigoGenerado = '';
+         for (let i = 0; i < cleanId.length; i++) {
+             const charCode = cleanId.charCodeAt(i);
+             const newCharCode = charCode + (i % 3) + 1;
+             codigoGenerado += String.fromCharCode(newCharCode);
+         }
+         return (codigoGenerado.slice(0, 4) + 'X' + codigoGenerado.slice(4)).toUpperCase();
+    }
+
+    function pedirCodigoActivacion() {
+        const codigo = prompt("Ingresa el Código de Activación (o la frase secreta DEV):");
+        if (codigo) {
+            const codigoLimpio = codigo.toUpperCase().trim();
+            
+            // 1. Lógica Exclusiva DEV: Comprueba la clave secreta
+            if (codigoLimpio === ADMIN_UNLOCK_PHRASE.toUpperCase()) {
+                 activarLicenciaAdmin();
+                 return;
             }
+            
+            // 2. Lógica Normal de Cliente: Verifica código de pago
+            const expectedCode = generarCodigoActivacionDesdeID(generarClientID());
+            
+            if (codigoLimpio === expectedCode) {
+                activarSuscripcion();
+                alert("¡Suscripción activada con éxito! La aplicación ya está lista para usar.");
+            } else {
+                alert("Código de activación inválido o incorrecto.");
+            }
+        }
+    }
+    
+    function activarSuscripcion() {
+        const expirationTime = Date.now() + SUB_DURATION_MS; // 30 días
+        localStorage.setItem(SUBSCRIPTION_KEY, expirationTime);
+        verificarSuscripcion();
+    }
+
+    function activarLicenciaAdmin() {
+        localStorage.setItem(ADMIN_KEY, 'active');
+        verificarSuscripcion();
+        alert("🔑 Licencia DEV activada. Ahora tienes acceso al Panel Admin.");
+    }
+
+    function verificarSuscripcion() {
+        const statusElement = document.getElementById('subscription-status');
+        const adminPanel = document.getElementById('admin-panel');
+        const payButton = document.getElementById('pay-button');
+        const now = Date.now();
+        
+        // --- Verificación DEV (ADMIN) ---
+        const isAdminActive = localStorage.getItem(ADMIN_KEY) === 'active';
+        if (isAdminActive) {
+            adminPanel.style.display = 'block'; // Muestra solo para el admin
+            document.body.classList.remove('app-blocked');
+            statusElement.className = 'alert-success';
+            statusElement.textContent = "✅ Licencia DEV Activa (ADMIN)";
+            return;
+        } else {
+            adminPanel.style.display = 'none'; // Oculta para el resto
         }
         
-        function generarCodigoActivacionDesdeID(clienteIdInput) {
-             const cleanId = clienteIdInput.replace(/-/g, '');
-             let codigoGenerado = '';
-             for (let i = 0; i < cleanId.length; i++) {
-                 const charCode = cleanId.charCodeAt(i);
-                 const newCharCode = charCode + (i % 3) + 1;
-                 codigoGenerado += String.fromCharCode(newCharCode);
-             }
-             return (codigoGenerado.slice(0, 4) + 'X' + codigoGenerado.slice(4)).toUpperCase();
-        }
+        // --- Verificación de Suscripción de Cliente Normal ---
+        const expiryTimestamp = localStorage.getItem(SUBSCRIPTION_KEY);
 
-        function activarSuscripcion() {
-            const expirationTime = Date.now() + SUB_DURATION_MS; // 30 días
-            localStorage.setItem(SUBSCRIPTION_KEY, expirationTime);
-            verificarSuscripcion();
-        }
-
-        function activarLicenciaAdmin() {
-            localStorage.setItem(ADMIN_KEY, 'active');
-            verificarSuscripcion();
-            alert("🔑 Licencia DEV activada. Ahora tienes acceso al Panel Admin.");
-        }
-
-        function verificarSuscripcion() {
-            const statusElement = document.getElementById('subscription-status');
-            const adminPanel = document.getElementById('admin-panel');
-            const devButton = document.getElementById('dev-license-btn');
-            const payButton = document.getElementById('pay-button');
-            const now = Date.now();
+        if (!expiryTimestamp) {
+            // Primer uso / Período de gracia.
+            statusElement.className = 'alert-warning';
+            statusElement.textContent = "⚠️ Período de gracia. 3 días restantes.";
+            document.body.classList.remove('app-blocked'); 
+            payButton.classList.remove('disabled');
+        } else if (now < parseInt(expiryTimestamp)) {
+            // Suscripción Activa
+            const daysLeft = Math.ceil((parseInt(expiryTimestamp) - now) / (24 * 60 * 60 * 1000));
             
-            // --- Verificación DEV (ADMIN) ---
-            const isAdminActive = localStorage.getItem(ADMIN_KEY) === 'active';
-            if (isAdminActive) {
-                adminPanel.style.display = 'block';
-                devButton.style.display = 'none'; // Se oculta porque ya está activa
-                document.body.classList.remove('app-blocked');
-                statusElement.className = 'alert-success';
-                statusElement.textContent = "✅ Licencia DEV Activa (ADMIN)";
-                return;
-            } else {
-                devButton.style.display = 'block'; // Muestra el botón DEV si no está activo
-                adminPanel.style.display = 'none';
-            }
-            
-            // --- Verificación de Suscripción de Cliente ---
-            const expiryTimestamp = localStorage.getItem(SUBSCRIPTION_KEY);
+            document.body.classList.remove('app-blocked');
+            payButton.classList.remove('disabled');
 
-            if (!expiryTimestamp) {
-                // Primer uso / Nunca ha pagado
+            if (daysLeft <= 7) {
                 statusElement.className = 'alert-warning';
-                statusElement.textContent = "⚠️ Período de gracia. 3 días restantes.";
-                document.body.classList.remove('app-blocked'); 
-                payButton.classList.remove('disabled');
-                
-                // NOTA: Se aplica el bloqueo duro después del período de gracia (aquí simplificado)
-            } else if (now < parseInt(expiryTimestamp)) {
-                // Suscripción Activa
-                const daysLeft = Math.ceil((parseInt(expiryTimestamp) - now) / (24 * 60 * 60 * 1000));
-                
-                document.body.classList.remove('app-blocked');
-                payButton.classList.remove('disabled');
-
-                if (daysLeft <= 7) {
-                    statusElement.className = 'alert-warning';
-                    statusElement.textContent = `🟡 Suscripción vence en ${daysLeft} días. ¡Renueva!`;
-                } else {
-                    statusElement.className = 'alert-success';
-                    statusElement.textContent = `🟢 Suscripción Activa. Vence en ${daysLeft} días.`;
-                }
+                statusElement.textContent = `🟡 Suscripción vence en ${daysLeft} días. ¡Renueva!`;
             } else {
-                // Suscripción Vencida (Bloqueo)
-                document.body.classList.add('app-blocked');
-                statusElement.className = 'alert-danger';
-                statusElement.textContent = "🛑 Aplicación Bloqueada. Suscripción Vencida.";
-                payButton.classList.remove('disabled');
+                statusElement.className = 'alert-success';
+                statusElement.textContent = `🟢 Suscripción Activa. Vence en ${daysLeft} días.`;
             }
+        } else {
+            // Suscripción Vencida (Bloqueo)
+            document.body.classList.add('app-blocked');
+            statusElement.className = 'alert-danger';
+            statusElement.textContent = "🛑 Aplicación Bloqueada. Suscripción Vencida.";
+            payButton.classList.remove('disabled');
         }
-        
-        // --- INICIALIZACIÓN ---
-        function init() {
-            generarClientID();
-            // --- CÓDIGO AÑADIDO/MODIFICADO PARA ACTIVACIÓN AUTOMÁTICA DEL ADMIN ---
-            if (localStorage.getItem(ADMIN_KEY) !== 'active') {
-                activarLicenciaAdmin();
-            }
-            // ----------------------------------------------------------------------
-            verificarSuscripcion();
-            obtenerProductos(); // Asegura que la lista inicial exista
-            cargarSelectProductos();
-            cargarEditorProductos(); // Carga la lista de edición del comerciante
-            renderizarResumen();
-        }
+    }
+    
+    // --- INICIALIZACIÓN ---
+    function init() {
+        generarClientID();
+        verificarSuscripcion(); 
+        obtenerProductos(); 
+        cargarSelectProductos();
+        cargarEditorProductos(); 
+        renderizarResumen();
+    }
 
-        window.onload = init;
-    </script>
+    window.onload = init;
+</script>
+
 </body>
 </html>
